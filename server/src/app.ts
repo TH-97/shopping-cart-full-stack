@@ -17,7 +17,7 @@ const cartItemService = new CartItemService(cartItemRepository, productRepositor
 
 app.use(
   cors({
-    origin: ['http://localhost:8080'],
+    origin: ['http://localhost:8080', 'https://th-97.github.io'],
     credentials: true,
   }),
 );
