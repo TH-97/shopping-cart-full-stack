@@ -5,7 +5,8 @@ import { CartLayout } from './CartLayout';
 import { Empty } from './Empty';
 import { ErrorView } from './ErrorView';
 import { IsLoding } from './IsLoding';
-import { isAllChecked, isValidQuantity, toggleId } from './cart.utils';
+import { isAllChecked, isValidQuantity } from './cart.utils';
+import { useSelectedIds } from './useSelectedIds';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
@@ -22,21 +23,9 @@ interface CartItemData {
 export function CartPage() {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-
-  const toggleItem = (cartItemId: string) => {
-    setSelectedIds((prev) => toggleId(prev, cartItemId));
-  };
-
-  const toggleAll = () => {
-    if (isAllChecked(cartItems, selectedIds)) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(cartItems.map((item) => item.cartItemId)));
-    }
-  };
+  const { selectedIds, toggleItem, toggleAll } = useSelectedIds(cartItems);
 
   useEffect(() => {
     const fetchCartItems = async () => {
@@ -47,13 +36,6 @@ export function CartPage() {
         }
         const data: CartItemData[] = await response.json();
         setCartItems(data);
-
-        const saved = localStorage.getItem('selectedIds');
-        setSelectedIds(
-          saved
-            ? new Set(JSON.parse(saved))
-            : new Set(data.map((item) => item.cartItemId)),
-        );
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -62,11 +44,6 @@ export function CartPage() {
     };
     fetchCartItems();
   }, []);
-
-  useEffect(() => {
-    if (cartItems.length === 0) return;
-    localStorage.setItem('selectedIds', JSON.stringify([...selectedIds]));
-  }, [selectedIds, cartItems]);
 
   const changeQuantity = async (cartItemId: string, newQuantity: number) => {
     if (!isValidQuantity(newQuantity)) return;
@@ -94,12 +71,6 @@ export function CartPage() {
     setCartItems((prev) =>
       prev.filter((item) => item.cartItemId !== cartItemId),
     );
-
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(cartItemId);
-      return next;
-    });
   };
 
   if (isLoading)
