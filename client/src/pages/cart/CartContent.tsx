@@ -22,6 +22,7 @@ import {
   SelectAllText,
   TotalValue,
 } from './styles';
+import { calculateDeliveryFee, calculateOrderAmount } from './cart.utils';
 
 interface CartItemData {
   cartItemId: string;
@@ -53,15 +54,8 @@ export function CartContent({
   onDeleteItem,
   onOrder,
 }: CartContentProps) {
-  let priceSummry = 0;
-
-  cartItems.forEach((item) => {
-    if (selectedIds.has(item.cartItemId)) {
-      priceSummry += item.productPrice * item.purchaseQuantity;
-    }
-  });
-
-  const deliveryCharge = priceSummry >= 100000 ? 0 : 3000;
+  const priceSummry = calculateOrderAmount(cartItems, selectedIds);
+  const deliveryCharge = calculateDeliveryFee(priceSummry);
 
   return (
     <>

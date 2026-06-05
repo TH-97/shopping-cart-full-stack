@@ -11,6 +11,7 @@ import {
   TotalLabel,
   Wrapper,
 } from './styles';
+import { calculateDeliveryFee, calculateOrderAmount } from '../cart/cart.utils';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
@@ -53,14 +54,8 @@ export function OrderConfirmPage() {
     0,
   );
 
-  const orderAmount = selectedItems.reduce(
-    (sum, item) => sum + item.productPrice * item.purchaseQuantity,
-    0,
-  );
-
-  const deliveryCharge =
-    orderAmount === 0 || orderAmount >= 100000 ? 0 : 3000;
-
+  const orderAmount = calculateOrderAmount(cartItems, selectedIds);
+  const deliveryCharge = calculateDeliveryFee(orderAmount);
   const totalAmount = orderAmount + deliveryCharge;
 
   return (
