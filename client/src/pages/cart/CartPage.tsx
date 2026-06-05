@@ -12,11 +12,15 @@ import type { CartItemData } from '../../types/cart';
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
 
+type State =
+  | { status: 'loading' }
+  | { status: 'error'; error: Error }
+  | { status: 'ready' };
+
 export function CartPage() {
   const navigate = useNavigate();
+  const [state, setState] = useState<State>({ status: 'loading' });
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const { selectedIds, toggleItem, toggleAll } = useSelectedIds(cartItems);
 
   useEffect(() => {
@@ -28,10 +32,9 @@ export function CartPage() {
         }
         const data: CartItemData[] = await response.json();
         setCartItems(data);
+        setState({ status: 'ready' });
       } catch (err) {
-        setError(err as Error);
-      } finally {
-        setIsLoading(false);
+        setState({ status: 'error', error: err as Error });
       }
     };
     fetchCartItems();
@@ -65,17 +68,17 @@ export function CartPage() {
     );
   };
 
-  if (isLoading)
+  if (state.status === 'loading')
     return (
       <CartLayout>
         <IsLoding />
       </CartLayout>
     );
 
-  if (error)
+  if (state.status === 'error')
     return (
       <CartLayout>
-        <ErrorView message={error.message} />
+        <ErrorView message={state.error.message} />
       </CartLayout>
     );
 
