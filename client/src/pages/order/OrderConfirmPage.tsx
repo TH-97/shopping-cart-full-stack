@@ -12,18 +12,10 @@ import {
   Wrapper,
 } from './styles';
 import { calculateDeliveryFee, calculateOrderAmount } from '../cart/cart.utils';
+import type { CartItemData } from '../../types/cart';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
-
-interface CartItemData {
-  cartItemId: string;
-  productId: string;
-  productName: string;
-  productPrice: number;
-  imageUrl: string;
-  purchaseQuantity: number;
-}
 
 export function OrderConfirmPage() {
   const navigate = useNavigate();

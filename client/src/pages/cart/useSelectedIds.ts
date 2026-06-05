@@ -1,14 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isAllChecked, toggleId } from './cart.utils';
-
-interface CartItemData {
-  cartItemId: string;
-  productId: string;
-  productName: string;
-  productPrice: number;
-  imageUrl: string;
-  purchaseQuantity: number;
-}
+import type { CartItemData } from '../../types/cart';
 
 export function useSelectedIds(cartItems: CartItemData[]) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

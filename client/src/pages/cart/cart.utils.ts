@@ -1,11 +1,4 @@
-interface CartItemData {
-  cartItemId: string;
-  productId: string;
-  productName: string;
-  productPrice: number;
-  imageUrl: string;
-  purchaseQuantity: number;
-}
+import type { CartItemData } from '../../types/cart';
 
 export function isValidQuantity(quantity: number): boolean {
   return quantity >= 1 && quantity <= 99;

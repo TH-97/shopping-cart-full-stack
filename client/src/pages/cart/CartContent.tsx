@@ -23,15 +23,7 @@ import {
   TotalValue,
 } from './styles';
 import { calculateDeliveryFee, calculateOrderAmount } from './cart.utils';
-
-interface CartItemData {
-  cartItemId: string;
-  productId: string;
-  productName: string;
-  productPrice: number;
-  imageUrl: string;
-  purchaseQuantity: number;
-}
+import type { CartItemData } from '../../types/cart';
 
 interface CartContentProps {
   cartItems: CartItemData[];

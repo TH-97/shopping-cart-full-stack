@@ -7,18 +7,10 @@ import { ErrorView } from './ErrorView';
 import { IsLoding } from './IsLoding';
 import { isAllChecked, isValidQuantity } from './cart.utils';
 import { useSelectedIds } from './useSelectedIds';
+import type { CartItemData } from '../../types/cart';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
-
-interface CartItemData {
-  cartItemId: string;
-  productId: string;
-  productName: string;
-  productPrice: number;
-  imageUrl: string;
-  purchaseQuantity: number;
-}
 
 export function CartPage() {
   const navigate = useNavigate();
