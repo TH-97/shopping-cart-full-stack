@@ -7,8 +7,9 @@ interface CartItemData {
   purchaseQuantity: number;
 }
 
-const FREE_DELIVERY_THRESHOLD = 100000;
-const DELIVERY_CHARGE = 3000;
+export function isValidQuantity(quantity: number): boolean {
+  return quantity >= 1 && quantity <= 99;
+}
 
 export function calculateOrderAmount(
   cartItems: CartItemData[],
@@ -21,7 +22,7 @@ export function calculateOrderAmount(
 }
 
 export function calculateDeliveryFee(orderAmount: number): number {
-  return orderAmount >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
+  return orderAmount >= 100000 ? 0 : 3000;
 }
 
 export function isAllChecked(

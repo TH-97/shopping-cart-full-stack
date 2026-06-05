@@ -5,7 +5,7 @@ import { CartLayout } from './CartLayout';
 import { Empty } from './Empty';
 import { ErrorView } from './ErrorView';
 import { IsLoding } from './IsLoding';
-import { isAllChecked, toggleId } from './cart.utils';
+import { isAllChecked, isValidQuantity, toggleId } from './cart.utils';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
@@ -69,7 +69,7 @@ export function CartPage() {
   }, [selectedIds, cartItems]);
 
   const changeQuantity = async (cartItemId: string, newQuantity: number) => {
-    if (newQuantity < 1 || newQuantity > 99) return;
+    if (!isValidQuantity(newQuantity)) return;
 
     await fetch(`${BASE_URL}/cart/items/${cartItemId}`, {
       method: 'PATCH',
