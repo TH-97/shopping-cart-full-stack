@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import {
+  deleteCartItem,
+  fetchCartItems,
+  patchQuantity,
+} from '../api/cartApi';
 import { isValidQuantity } from '../utils/cart.utils';
 import type { CartItemData } from '../types/cart';
-
-const BASE_URL =
-  'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
 
 type CartStatus =
   | { status: 'loading' }
@@ -15,30 +17,22 @@ export function useCart() {
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
 
   useEffect(() => {
-    const fetchCartItems = async () => {
+    const loadCartItems = async () => {
       try {
-        const response = await fetch(`${BASE_URL}/cart/items`);
-        if (!response.ok) {
-          throw new Error('장바구니를 불러오지 못했습니다.');
-        }
-        const data: CartItemData[] = await response.json();
+        const data = await fetchCartItems();
         setCartItems(data);
         setState({ status: 'ready' });
       } catch (err) {
         setState({ status: 'error', error: err as Error });
       }
     };
-    fetchCartItems();
+    loadCartItems();
   }, []);
 
   const changeQuantity = async (cartItemId: string, newQuantity: number) => {
     if (!isValidQuantity(newQuantity)) return;
 
-    await fetch(`${BASE_URL}/cart/items/${cartItemId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purchaseQuantity: newQuantity }),
-    });
+    await patchQuantity(cartItemId, newQuantity);
 
     setCartItems((prev) =>
       prev.map((item) =>
@@ -50,7 +44,7 @@ export function useCart() {
   };
 
   const deleteItem = async (cartItemId: string) => {
-    await fetch(`${BASE_URL}/cart/items/${cartItemId}`, { method: 'DELETE' });
+    await deleteCartItem(cartItemId);
     setCartItems((prev) =>
       prev.filter((item) => item.cartItemId !== cartItemId),
     );
