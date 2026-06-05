@@ -23,3 +23,10 @@ export function calculateOrderAmount(
 export function calculateDeliveryFee(orderAmount: number): number {
   return orderAmount >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
 }
+
+export function isAllChecked(
+  cartItems: CartItemData[],
+  selectedIds: Set<string>,
+): boolean {
+  return cartItems.length > 0 && selectedIds.size === cartItems.length;
+}

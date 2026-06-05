@@ -5,6 +5,7 @@ import { CartLayout } from './CartLayout';
 import { Empty } from './Empty';
 import { ErrorView } from './ErrorView';
 import { IsLoding } from './IsLoding';
+import { isAllChecked } from './cart.utils';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
@@ -37,14 +38,11 @@ export function CartPage() {
     });
   };
 
-  const isAllChecked =
-    cartItems.length > 0 && selectedIds.size === cartItems.length;
-
   const toggleAll = () => {
-    if (isAllChecked) {
-      setSelectedIds(new Set()); // 전부 선택돼 있으면 → 전체 해제
+    if (isAllChecked(cartItems, selectedIds)) {
+      setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(cartItems.map((item) => item.cartItemId))); // 전체 선택
+      setSelectedIds(new Set(cartItems.map((item) => item.cartItemId)));
     }
   };
 
@@ -138,7 +136,7 @@ export function CartPage() {
       <CartContent
         cartItems={cartItems}
         selectedIds={selectedIds}
-        isAllChecked={isAllChecked}
+        isAllChecked={isAllChecked(cartItems, selectedIds)}
         onToggleAll={toggleAll}
         onToggleItem={toggleItem}
         onChangeQuantity={changeQuantity}
