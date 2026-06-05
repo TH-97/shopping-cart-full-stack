@@ -5,7 +5,7 @@ import { CartLayout } from './CartLayout';
 import { Empty } from './Empty';
 import { ErrorView } from './ErrorView';
 import { IsLoding } from './IsLoding';
-import { isAllChecked } from './cart.utils';
+import { isAllChecked, toggleId } from './cart.utils';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
@@ -27,15 +27,7 @@ export function CartPage() {
   const [error, setError] = useState<Error | null>(null);
 
   const toggleItem = (cartItemId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(cartItemId)) {
-        next.delete(cartItemId);
-      } else {
-        next.add(cartItemId);
-      }
-      return next;
-    });
+    setSelectedIds((prev) => toggleId(prev, cartItemId));
   };
 
   const toggleAll = () => {

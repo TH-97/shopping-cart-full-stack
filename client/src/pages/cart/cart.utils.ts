@@ -30,3 +30,14 @@ export function isAllChecked(
 ): boolean {
   return cartItems.length > 0 && selectedIds.size === cartItems.length;
 }
+
+export function toggleId(selectedIds: Set<string>, id: string): Set<string> {
+  const next = new Set(selectedIds);
+
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  return next;
+}
