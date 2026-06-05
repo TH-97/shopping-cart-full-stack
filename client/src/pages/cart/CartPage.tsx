@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { CartContent } from './CartContent';
-import { CartLayout } from './CartLayout';
-import { Empty } from './Empty';
-import { ErrorView } from './ErrorView';
-import { IsLoding } from './IsLoding';
-import { isAllChecked } from './cart.utils';
-import { useCart } from './useCart';
-import { useSelectedIds } from './useSelectedIds';
+import { CartContent } from '../../components/CartContent';
+import { CartLayout } from '../../components/CartLayout';
+import { Empty } from '../../components/Empty';
+import { ErrorView } from '../../components/ErrorView';
+import { IsLoding } from '../../components/IsLoding';
+import { isAllChecked } from '../../utils/cart.utils';
+import { useCart } from '../../hooks/useCart';
+import { useSelectedIds } from '../../hooks/useSelectedIds';
 
 export function CartPage() {
   const navigate = useNavigate();

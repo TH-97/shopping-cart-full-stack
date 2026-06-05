@@ -22,8 +22,8 @@ import {
   SelectAllText,
   TotalValue,
 } from './styles';
-import { calculateDeliveryFee, calculateOrderAmount } from './cart.utils';
-import type { CartItemData } from '../../types/cart';
+import { calculateDeliveryFee, calculateOrderAmount } from '../utils/cart.utils';
+import type { CartItemData } from '../types/cart';
 
 interface CartContentProps {
   cartItems: CartItemData[];

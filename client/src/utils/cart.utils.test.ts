@@ -1,5 +1,5 @@
 import { calculateDeliveryFee, calculateOrderAmount } from './cart.utils';
-import type { CartItemData } from '../../types/cart';
+import type { CartItemData } from '../types/cart';
 
 const makeItem = (overrides: Partial<CartItemData> = {}): CartItemData => ({
   cartItemId: '1',

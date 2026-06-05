@@ -11,7 +11,7 @@ import {
   TotalLabel,
   Wrapper,
 } from './styles';
-import { calculateDeliveryFee, calculateOrderAmount } from '../cart/cart.utils';
+import { calculateDeliveryFee, calculateOrderAmount } from '../../utils/cart.utils';
 import type { CartItemData } from '../../types/cart';
 
 const BASE_URL =

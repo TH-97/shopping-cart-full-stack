@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { isValidQuantity } from './cart.utils';
-import type { CartItemData } from '../../types/cart';
+import { isValidQuantity } from '../utils/cart.utils';
+import type { CartItemData } from '../types/cart';
 
 const BASE_URL =
   'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
