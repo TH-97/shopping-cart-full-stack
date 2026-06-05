@@ -11,7 +11,10 @@ import {
   TotalLabel,
   Wrapper,
 } from './styles';
-import { calculateDeliveryFee, calculateOrderAmount } from '../../utils/cart.utils';
+import {
+  calculateDeliveryFee,
+  calculateOrderAmount,
+} from '../../utils/cart.utils';
 import type { CartItemData } from '../../types/cart';
 
 const BASE_URL =
@@ -36,7 +39,6 @@ export function OrderConfirmPage() {
     fetchCartItems();
   }, []);
 
-  // 선택된 상품만 기준으로 다시 계산 (장바구니와 같은 소스 → SSOT)
   const selectedItems = cartItems.filter((item) =>
     selectedIds.has(item.cartItemId),
   );
