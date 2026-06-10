@@ -5,13 +5,13 @@ import { Empty } from '../../components/Empty';
 import { ErrorView } from '../../components/ErrorView';
 import { IsLoding } from '../../components/IsLoding';
 import { isAllChecked } from '../../utils/cart.utils';
-import { useCart } from '../../hooks/useCart';
+import { useCartQuery } from '../../hooks/useCartQuery';
+import { useCartMutations } from '../../hooks/useCartMutations';
 import { useSelectedIds } from '../../hooks/useSelectedIds';
+import type { CartItemData } from '../../types/cart';
 
 export function CartPage() {
-  const navigate = useNavigate();
-  const { state, cartItems, changeQuantity, deleteItem } = useCart();
-  const { selectedIds, toggleItem, toggleAll } = useSelectedIds(cartItems);
+  const state = useCartQuery();
 
   if (state.status === 'loading')
     return (
@@ -26,6 +26,14 @@ export function CartPage() {
         <ErrorView message={state.error.message} />
       </CartLayout>
     );
+
+  return <LoadedCart initialItems={state.cartItems} />;
+}
+
+function LoadedCart({ initialItems }: { initialItems: CartItemData[] }) {
+  const navigate = useNavigate();
+  const { cartItems, changeQuantity, deleteItem } = useCartMutations(initialItems);
+  const { selectedIds, toggleItem, toggleAll } = useSelectedIds(cartItems);
 
   if (cartItems.length === 0)
     return (
