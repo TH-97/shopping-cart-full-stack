@@ -15,10 +15,9 @@ import {
   calculateDeliveryFee,
   calculateOrderAmount,
 } from '../../utils/cart.utils';
+import { fetchCartItems } from '../../api/cartApi';
+import { loadSelectedIds } from '../../storage/selectedIdsStorage';
 import type { CartItemData } from '../../types/cart';
-
-const BASE_URL =
-  'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
 
 export function OrderConfirmPage() {
   const navigate = useNavigate();
@@ -26,17 +25,16 @@ export function OrderConfirmPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchCartItems = async () => {
-      const response = await fetch(`${BASE_URL}/cart/items`);
-      if (response.ok) {
-        const data: CartItemData[] = await response.json();
+    const loadOrder = async () => {
+      try {
+        const data = await fetchCartItems();
         setCartItems(data);
-
-        const saved = localStorage.getItem('selectedIds');
-        setSelectedIds(saved ? new Set(JSON.parse(saved)) : new Set());
+        setSelectedIds(loadSelectedIds() ?? new Set());
+      } catch {
+        // 주문 정보를 불러오지 못하면 빈 상태를 유지한다
       }
     };
-    fetchCartItems();
+    loadOrder();
   }, []);
 
   const selectedItems = cartItems.filter((item) =>
