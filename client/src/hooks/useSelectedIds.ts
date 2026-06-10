@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isAllChecked, toggleId } from '../utils/cart.utils';
+import { loadSelectedIds, saveSelectedIds } from '../storage/selectedIdsStorage';
 import type { CartItemData } from '../types/cart';
 
 export function useSelectedIds(cartItems: CartItemData[]) {
@@ -11,11 +12,9 @@ export function useSelectedIds(cartItems: CartItemData[]) {
 
     // 최초 로드 시 한 번만: 저장된 선택을 복원, 없으면 전체 선택
     if (!initialized.current) {
-      const saved = localStorage.getItem('selectedIds');
+      const saved = loadSelectedIds();
       setSelectedIds(
-        saved
-          ? new Set<string>(JSON.parse(saved))
-          : new Set(cartItems.map((item) => item.cartItemId)),
+        saved ?? new Set(cartItems.map((item) => item.cartItemId)),
       );
       initialized.current = true;
       return;
@@ -32,7 +31,7 @@ export function useSelectedIds(cartItems: CartItemData[]) {
   // 선택이 바뀔 때마다 localStorage에 저장
   useEffect(() => {
     if (cartItems.length === 0) return;
-    localStorage.setItem('selectedIds', JSON.stringify([...selectedIds]));
+    saveSelectedIds(selectedIds);
   }, [selectedIds, cartItems]);
 
   const toggleItem = (cartItemId: string) => {
