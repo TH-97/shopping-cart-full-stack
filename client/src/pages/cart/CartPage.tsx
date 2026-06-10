@@ -32,7 +32,8 @@ export function CartPage() {
 
 function LoadedCart({ initialItems }: { initialItems: CartItemData[] }) {
   const navigate = useNavigate();
-  const { cartItems, changeQuantity, deleteItem } = useCartMutations(initialItems);
+  const { cartItems, changeQuantity, deleteItem, error } =
+    useCartMutations(initialItems);
   const { selectedIds, toggleItem, toggleAll } = useSelectedIds(cartItems);
 
   if (cartItems.length === 0)
@@ -53,6 +54,7 @@ function LoadedCart({ initialItems }: { initialItems: CartItemData[] }) {
         onChangeQuantity={changeQuantity}
         onDeleteItem={deleteItem}
         onOrder={() => navigate('/order')}
+        error={error}
       />
     </CartLayout>
   );

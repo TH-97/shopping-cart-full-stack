@@ -4,6 +4,7 @@ import {
   CheckBox,
   DeleteButton,
   Description,
+  ErrorNotice,
   ItemBody,
   ItemImage,
   ItemInfo,
@@ -22,7 +23,10 @@ import {
   SelectAllText,
   TotalValue,
 } from './styles';
-import { calculateDeliveryFee, calculateOrderAmount } from '../utils/cart.utils';
+import {
+  calculateDeliveryFee,
+  calculateOrderAmount,
+} from '../utils/cart.utils';
 import type { CartItemData } from '../types/cart';
 
 interface CartContentProps {
@@ -34,6 +38,7 @@ interface CartContentProps {
   onChangeQuantity: (cartItemId: string, newQuantity: number) => void;
   onDeleteItem: (cartItemId: string) => void;
   onOrder: () => void;
+  error: string | null;
 }
 
 export function CartContent({
@@ -45,13 +50,16 @@ export function CartContent({
   onChangeQuantity,
   onDeleteItem,
   onOrder,
+  error,
 }: CartContentProps) {
   const priceSummry = calculateOrderAmount(cartItems, selectedIds);
   const deliveryCharge = calculateDeliveryFee(priceSummry);
 
   return (
     <>
-      <Description>현재 {cartItems.length}종류의 상품이 담겨있습니다.</Description>
+      <Description>
+        현재 {cartItems.length}종류의 상품이 담겨있습니다.
+      </Description>
 
       <SelectAllLabel>
         <CheckBox
@@ -84,7 +92,10 @@ export function CartContent({
                   <QuantityButton
                     aria-label="수량 감소"
                     onClick={() =>
-                      onChangeQuantity(item.cartItemId, item.purchaseQuantity - 1)
+                      onChangeQuantity(
+                        item.cartItemId,
+                        item.purchaseQuantity - 1,
+                      )
                     }
                   >
                     -
@@ -93,7 +104,10 @@ export function CartContent({
                   <QuantityButton
                     aria-label="수량 증가"
                     onClick={() =>
-                      onChangeQuantity(item.cartItemId, item.purchaseQuantity + 1)
+                      onChangeQuantity(
+                        item.cartItemId,
+                        item.purchaseQuantity + 1,
+                      )
                     }
                   >
                     +
@@ -121,6 +135,8 @@ export function CartContent({
           <TotalValue>{priceSummry + deliveryCharge}원</TotalValue>
         </PriceRow>
       </PriceSummary>
+
+      {error && <ErrorNotice>{error}</ErrorNotice>}
 
       <PrimaryButton onClick={onOrder}>주문 확인</PrimaryButton>
     </>

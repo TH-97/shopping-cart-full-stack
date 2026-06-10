@@ -1,4 +1,4 @@
-import { useReducer } from 'react';
+import { useReducer, useState } from 'react';
 import { deleteCartItem, patchQuantity } from '../api/cartApi';
 import { isValidQuantity } from '../utils/cart.utils';
 import type { CartItemData } from '../types/cart';
@@ -27,18 +27,29 @@ function cartItemsReducer(
 
 export function useCartMutations(initialItems: CartItemData[]) {
   const [cartItems, dispatch] = useReducer(cartItemsReducer, initialItems);
+  const [error, setError] = useState<string | null>(null);
 
   const changeQuantity = async (cartItemId: string, newQuantity: number) => {
     if (!isValidQuantity(newQuantity)) return;
 
-    await patchQuantity(cartItemId, newQuantity);
-    dispatch({ type: 'changeQuantity', cartItemId, newQuantity });
+    try {
+      await patchQuantity(cartItemId, newQuantity);
+      dispatch({ type: 'changeQuantity', cartItemId, newQuantity });
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   };
 
   const deleteItem = async (cartItemId: string) => {
-    await deleteCartItem(cartItemId);
-    dispatch({ type: 'deleteItem', cartItemId });
+    try {
+      await deleteCartItem(cartItemId);
+      dispatch({ type: 'deleteItem', cartItemId });
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   };
 
-  return { cartItems, changeQuantity, deleteItem };
+  return { cartItems, changeQuantity, deleteItem, error };
 }

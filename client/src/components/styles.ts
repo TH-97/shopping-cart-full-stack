@@ -204,6 +204,13 @@ export const PrimaryButton = styled.button`
   }
 `;
 
+export const ErrorNotice = styled.p`
+  margin: 0;
+  padding: 0 24px 16px;
+  font-size: 13px;
+  color: #e02020;
+`;
+
 export const EmptyMessage = styled.p`
   flex: 1;
   display: flex;
