@@ -31,3 +31,27 @@ export const productNotFoundError = () =>
 
 export const cartItemNotFoundError = () =>
   new DomainError('CART_ITEM_NOT_FOUND', '존재하지 않는 장바구니 상품입니다.');
+
+export const invalidCartItemIdsError = () =>
+  new DomainError(
+    'INVALID_CART_ITEM_IDS',
+    '유효하지 않은 장바구니 상품 id 목록입니다.',
+  );
+
+export const invalidCouponIdsError = () =>
+  new DomainError('INVALID_COUPON_IDS', '유효하지 않은 쿠폰 id 목록입니다.');
+
+export const exceedsCouponLimitError = () =>
+  new DomainError('EXCEEDS_COUPON_LIMIT', '쿠폰은 최대 2장까지 사용할 수 있습니다.');
+
+export const couponNotFoundError = () =>
+  new DomainError('COUPON_NOT_FOUND', '존재하지 않는 쿠폰입니다.');
+
+export const couponExpiredError = () =>
+  new DomainError('COUPON_EXPIRED', '만료된 쿠폰입니다.');
+
+export const couponAlreadyUsedError = () =>
+  new DomainError('COUPON_ALREADY_USED', '이미 사용한 쿠폰입니다.');
+
+export const couponNotApplicableError = () =>
+  new DomainError('COUPON_NOT_APPLICABLE', '적용할 수 없는 쿠폰입니다.');

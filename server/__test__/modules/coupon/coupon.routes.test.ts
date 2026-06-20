@@ -1,0 +1,211 @@
+import express from 'express';
+import request from 'supertest';
+import { errorHandler } from '../../../src/middlewares/errorHandlers.js';
+import { CartItem } from '../../../src/modules/cart/cartItem.model.js';
+import { createInMemoryCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
+import { Coupon } from '../../../src/modules/coupon/coupon.model.js';
+import {
+  createInMemoryCouponRepository,
+  type UserCouponRow,
+} from '../../../src/modules/coupon/coupon.repository.js';
+import { CouponService } from '../../../src/modules/coupon/coupon.service.js';
+import { Product } from '../../../src/modules/products/product.model.js';
+import { createInMemoryProductRepository } from '../../../src/modules/products/product.repository.js';
+import { GetOrderCouponsUseCase } from '../../../src/application/getOrderCoupons.usecase.js';
+import { createCouponRouter } from '../../../src/modules/coupon/coupon.routes.js';
+
+const future = new Date('2099-12-31T23:59:59Z');
+const past = new Date('2020-01-01T00:00:00Z');
+
+let app: express.Express;
+let productsDB: Map<string, Product>;
+let cartItemsDB: Map<string, CartItem>;
+let couponsDB: Map<string, Coupon>;
+let userCouponsDB: Map<string, UserCouponRow>;
+
+const USER_ID = 'demo-user';
+
+beforeEach(() => {
+  productsDB = new Map();
+  cartItemsDB = new Map();
+  couponsDB = new Map();
+  userCouponsDB = new Map();
+
+  const couponRepository = createInMemoryCouponRepository(
+    couponsDB,
+    userCouponsDB,
+  );
+  const getOrderCouponsUseCase = new GetOrderCouponsUseCase(
+    createInMemoryCartItemRepository(cartItemsDB),
+    createInMemoryProductRepository(productsDB),
+    couponRepository,
+  );
+  const couponService = new CouponService(couponRepository);
+
+  app = express();
+  app.use(express.json());
+  app.use(
+    createCouponRouter({ getOrderCouponsUseCase, couponService, userId: USER_ID }),
+  );
+  app.use(errorHandler);
+});
+
+const addCoupon = (coupon: Coupon, isUsed = false) => {
+  couponsDB.set(coupon.couponId, coupon);
+  userCouponsDB.set(`uc-${coupon.couponId}`, {
+    userCouponId: `uc-${coupon.couponId}`,
+    couponId: coupon.couponId,
+    userId: USER_ID,
+    isUsed,
+  });
+};
+
+const seedItem = (
+  cartItemId: string,
+  productId: string,
+  price: number,
+  qty: number,
+) => {
+  productsDB.set(
+    productId,
+    new Product({
+      productId,
+      productName: '상품',
+      productPrice: price,
+      remainingQuantity: 99,
+    }),
+  );
+  cartItemsDB.set(
+    cartItemId,
+    new CartItem({ cartItemId, productId, purchaseQuantity: qty }),
+  );
+};
+
+describe('GET /coupons', () => {
+  test('보유 쿠폰과 주문금액을 200으로 반환한다', async () => {
+    seedItem('ci1', 'p1', 10000, 1);
+    addCoupon(
+      new Coupon({
+        couponId: 'fixed',
+        name: '정액',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: future,
+      }),
+    );
+
+    const res = await request(app).get('/coupons?selectedCartItemIds=ci1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.orderAmount).toBe(10000);
+    expect(res.body.coupons).toHaveLength(1);
+    expect(res.body.coupons[0]).toMatchObject({
+      couponId: 'fixed',
+      discountType: '정액',
+      isApplicable: true,
+      discountAmount: 5000,
+    });
+  });
+
+  test('보유 쿠폰이 없으면 빈 배열을 반환한다', async () => {
+    seedItem('ci1', 'p1', 10000, 1);
+
+    const res = await request(app).get('/coupons?selectedCartItemIds=ci1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.coupons).toEqual([]);
+  });
+
+  test('존재하지 않는 cartItemId면 404 CART_ITEM_NOT_FOUND', async () => {
+    const res = await request(app).get('/coupons?selectedCartItemIds=missing');
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('CART_ITEM_NOT_FOUND');
+  });
+});
+
+describe('POST /coupons/validate', () => {
+  test('유효한 쿠폰이면 204', async () => {
+    addCoupon(
+      new Coupon({
+        couponId: 'valid',
+        name: '정액',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: future,
+      }),
+    );
+
+    const res = await request(app)
+      .post('/coupons/validate')
+      .send({ selectedCouponIds: ['valid'] });
+
+    expect(res.status).toBe(204);
+  });
+
+  test('2장 초과면 400 EXCEEDS_COUPON_LIMIT', async () => {
+    const res = await request(app)
+      .post('/coupons/validate')
+      .send({ selectedCouponIds: ['a', 'b', 'c'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('EXCEEDS_COUPON_LIMIT');
+  });
+
+  test('존재하지 않으면 404 COUPON_NOT_FOUND', async () => {
+    const res = await request(app)
+      .post('/coupons/validate')
+      .send({ selectedCouponIds: ['missing'] });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('COUPON_NOT_FOUND');
+  });
+
+  test('만료된 쿠폰이면 400 COUPON_EXPIRED', async () => {
+    addCoupon(
+      new Coupon({
+        couponId: 'expired',
+        name: '만료',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: past,
+      }),
+    );
+
+    const res = await request(app)
+      .post('/coupons/validate')
+      .send({ selectedCouponIds: ['expired'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('COUPON_EXPIRED');
+  });
+
+  test('이미 사용한 쿠폰이면 400 COUPON_ALREADY_USED', async () => {
+    addCoupon(
+      new Coupon({
+        couponId: 'used',
+        name: '사용완료',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: future,
+      }),
+      true,
+    );
+
+    const res = await request(app)
+      .post('/coupons/validate')
+      .send({ selectedCouponIds: ['used'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('COUPON_ALREADY_USED');
+  });
+
+  test('selectedCouponIds가 배열이 아니면 400 INVALID_COUPON_IDS', async () => {
+    const res = await request(app)
+      .post('/coupons/validate')
+      .send({ selectedCouponIds: 'c1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_COUPON_IDS');
+  });
+});

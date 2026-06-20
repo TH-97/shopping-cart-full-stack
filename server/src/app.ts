@@ -7,17 +7,30 @@ import { CartItemService } from './modules/cart/cartItem.service.js';
 import { createProductRouter } from './modules/products/product.routes.js';
 import { ProductService } from './modules/products/product.service.js';
 import { DeleteProductUseCase } from './application/deleteProduct.usecase.js';
+import { createCouponRouter } from './modules/coupon/coupon.routes.js';
+import { CouponService } from './modules/coupon/coupon.service.js';
+import { createOrderRouter } from './modules/order/order.routes.js';
+import { OrderSummaryUseCase } from './application/orderSummary.usecase.js';
+import { GetOrderCouponsUseCase } from './application/getOrderCoupons.usecase.js';
 
 export type AppDependencies = {
   productService: ProductService;
   cartItemService: CartItemService;
   deleteProductUseCase: DeleteProductUseCase;
+  couponService: CouponService;
+  orderSummaryUseCase: OrderSummaryUseCase;
+  getOrderCouponsUseCase: GetOrderCouponsUseCase;
+  userId: string;
 };
 
 export const createApp = ({
   productService,
   cartItemService,
   deleteProductUseCase,
+  couponService,
+  orderSummaryUseCase,
+  getOrderCouponsUseCase,
+  userId,
 }: AppDependencies) => {
   const app = express();
 
@@ -35,6 +48,10 @@ export const createApp = ({
 
   app.use(createProductRouter(productService, deleteProductUseCase));
   app.use(createCartItemRouter(cartItemService));
+  app.use(createOrderRouter(orderSummaryUseCase));
+  app.use(
+    createCouponRouter({ getOrderCouponsUseCase, couponService, userId }),
+  );
 
   // 매칭 안 된 경로는 JSON 404로, 그 외 던져진 에러는 errorHandler로.
   app.use(notFoundHandler);
