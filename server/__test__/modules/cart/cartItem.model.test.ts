@@ -1,4 +1,4 @@
-import { ModelError } from '../../../src/errors/ModelError.js';
+import { DomainError } from '../../../src/errors/DomainError.js';
 import { CartItem } from '../../../src/modules/cart/cartItem.model.js';
 
 describe('cart 모델 테스트', () => {
@@ -27,7 +27,7 @@ describe('cart 모델 테스트', () => {
     }).toThrow('유효하지 않은 구매 수량입니다.');
   });
 
-  test('상품 수량이 유효하지 않으면 INVALID_PURCHASE_QUANTITY 코드를 가진 ModelError를 던진다', () => {
+  test('상품 수량이 유효하지 않으면 INVALID_PURCHASE_QUANTITY 코드를 가진 DomainError를 던진다', () => {
     const mockCartItem = {
       cartItemId: '10',
       productId: '1',
@@ -37,8 +37,8 @@ describe('cart 모델 테스트', () => {
     try {
       new CartItem(mockCartItem);
     } catch (error) {
-      expect(error).toBeInstanceOf(ModelError);
-      expect((error as ModelError).code).toBe('INVALID_PURCHASE_QUANTITY');
+      expect(error).toBeInstanceOf(DomainError);
+      expect((error as DomainError).code).toBe('INVALID_PURCHASE_QUANTITY');
     }
   });
 

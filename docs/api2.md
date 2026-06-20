@@ -16,7 +16,7 @@ http://localhost:3000
 ### 1-3. 응답 형식
 
 - 응답 body는 JSON 형식으로 전달한다.
-- 삭제 성공 응답은 body를 반환하지 않는다.
+- `204 No Content` 성공 응답은 body를 반환하지 않는다.
 - 에러 응답은 공통 에러 응답 형식으로 반환한다.
 
 ### 1-4. 주요 식별자
@@ -30,9 +30,9 @@ http://localhost:3000
 
 | 상태 코드                   | 설명                 |
 | --------------------------- | -------------------- |
-| `200 OK`                    | 조회, 수정 성공      |
+| `200 OK`                    | 조회 성공, 기존 리소스 갱신 성공 |
 | `201 Created`               | 생성 성공            |
-| `204 No Content`            | 삭제 성공            |
+| `204 No Content`            | 응답 본문이 없는 수정/삭제 성공 |
 | `400 Bad Request`           | 잘못된 요청          |
 | `404 Not Found`             | 존재하지 않는 리소스 |
 | `500 Internal Server Error` | 서버 내부 오류       |
@@ -48,7 +48,6 @@ http://localhost:3000
 
 - `INVALID_*`: 요청 값이 없거나 형식, 범위가 유효하지 않은 경우 사용한다.
 - `*_NOT_FOUND`: 요청 값의 형식은 유효하지만, 해당 리소스가 존재하지 않는 경우 사용한다.
-- `EXCEEDS_*`: 요청 값의 형식은 유효하지만, 비즈니스 규칙을 위반한 경우 사용한다.
 
 ## 2. 상품 API
 
@@ -251,7 +250,9 @@ POST /cart/items
 | `400 Bad Request` | `INVALID_PRODUCT_ID`         | `productId`가 정의되지 않았거나, 형식이 유효하지 않은 경우         |
 | `404 Not Found`   | `PRODUCT_NOT_FOUND`          | `productId`에 해당하는 상품이 존재하지 않는 경우                   |
 | `400 Bad Request` | `INVALID_PURCHASE_QUANTITY`  | `purchaseQuantity`가 정의되지 않았거나, 1 이상 99 이하가 아닌 경우 |
-| `400 Bad Request` | `EXCEEDS_REMAINING_QUANTITY` | 장바구니에 담으려는 수량이 상품의 남은 수량보다 많은 경우          |
+| `400 Bad Request` | `EXCEEDS_REMAINING_QUANTITY` | 담으려는 수량(이미 담긴 경우 합산 수량)이 상품의 `remainingQuantity`보다 많은 경우 |
+
+> 장바구니에 담으려는 수량은 상품의 `remainingQuantity`를 넘을 수 없다. 이미 담긴 상품을 다시 담는 경우, 기존 수량과 합산한 값이 `remainingQuantity`를 초과하면 `EXCEEDS_REMAINING_QUANTITY`를 응답한다. 단, 장바구니에 담는 동작이 실제 재고를 차감하거나 예약하지는 않는다(재고 차감은 주문 생성·결제 확정 흐름에서 처리).
 
 ---
 
@@ -295,7 +296,9 @@ PATCH /cart/items/:cartItemId
 | `400 Bad Request` | `INVALID_CART_ITEM_ID`       | `cartItemId` 형식이 유효하지 않은 경우                             |
 | `404 Not Found`   | `CART_ITEM_NOT_FOUND`        | `cartItemId`에 해당하는 장바구니 상품이 존재하지 않는 경우         |
 | `400 Bad Request` | `INVALID_PURCHASE_QUANTITY`  | `purchaseQuantity`가 정의되지 않았거나, 1 이상 99 이하가 아닌 경우 |
-| `400 Bad Request` | `EXCEEDS_REMAINING_QUANTITY` | 변경하려는 수량이 상품의 남은 수량보다 많은 경우                   |
+| `400 Bad Request` | `EXCEEDS_REMAINING_QUANTITY` | 변경하려는 수량이 상품의 `remainingQuantity`보다 많은 경우         |
+
+> 장바구니 수량 변경은 장바구니 항목의 `purchaseQuantity`만 변경하며 상품의 `remainingQuantity`를 차감하지는 않는다. 다만 변경하려는 수량이 `remainingQuantity`를 초과하면 `EXCEEDS_REMAINING_QUANTITY`로 거절한다.
 
 ---
 
@@ -410,3 +413,20 @@ DELETE /cart/items/:cartItemId
 ```
 
 따라서 request body에 `productId`나 `cartItemId`를 다시 전달하지 않는다. 삭제 성공 시에는 `204 No Content`를 반환하고 응답 본문은 비워 둔다.
+
+### 5-7. 장바구니 수량은 재고를 넘을 수 없지만, 재고를 차감하지는 않는 이유
+
+장바구니는 구매 확정이 아니라 구매 의사를 임시로 저장하는 영역이다.
+
+사용자가 상품을 장바구니에 담거나 수량을 변경했다고 해서 실제 주문이 생성된 것은 아니므로, 이 시점에 상품 재고를 **차감하거나 예약하지는 않는다**. 장바구니 단계에서 재고를 차감하면 사용자가 결제하지 않고 이탈했을 때 재고가 부정확해지고, 여러 사용자가 장바구니에 담기만 해도 판매 가능한 재고가 불필요하게 잠길 수 있다.
+
+다만 애초에 보유 수량보다 많은 수량을 담는 것은 구매 의사로서도 성립하지 않으므로, **담거나 변경하려는 수량이 상품의 `remainingQuantity`를 넘는 요청은 거절한다**(`EXCEEDS_REMAINING_QUANTITY`). 즉 "넘을 수 없다"는 검증은 하되, "차감/예약"은 하지 않는다.
+
+따라서 현재 API에서 장바구니 추가/수량 변경은 다음 규칙을 확인한다.
+
+- `productId` 형식이 유효하고 해당 상품이 존재하는지
+- `purchaseQuantity`가 1 이상 99 이하의 정수인지
+- 담거나 변경하려는 수량(추가 시 합산 수량)이 상품의 `remainingQuantity` 이하인지
+- `cartItemId`가 필요한 요청에서는 해당 장바구니 항목이 존재하는지
+
+실제 재고 차감과 품절 처리는 주문 생성 또는 결제 확정 API에서 처리한다.

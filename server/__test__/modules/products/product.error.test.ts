@@ -1,23 +1,33 @@
 import express from 'express';
 import request from 'supertest';
 import { errorHandler } from '../../../src/middlewares/errorHandlers.js';
-import { cartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
+import { createCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
 import { CartItemService } from '../../../src/modules/cart/cartItem.service.js';
-import { productRepository } from '../../../src/modules/products/product.repository.js';
+import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 import { createProductRouter } from '../../../src/modules/products/product.routes.js';
 import { ProductService } from '../../../src/modules/products/product.service.js';
+import { DeleteProductUseCase } from '../../../src/application/deleteProduct.usecase.js';
 
-const productService = new ProductService(productRepository);
-const cartItemService = new CartItemService(
-  cartItemRepository,
-  productRepository,
-);
+let app: express.Express;
 
-const app = express();
+beforeEach(() => {
+  const productRepository = createProductRepository(new Map());
+  const cartItemRepository = createCartItemRepository(new Map());
+  const productService = new ProductService(productRepository);
+  const cartItemService = new CartItemService(
+    cartItemRepository,
+    productRepository,
+  );
+  const deleteProductUseCase = new DeleteProductUseCase(
+    productService,
+    cartItemService,
+  );
 
-app.use(express.json());
-app.use(createProductRouter(productService, cartItemService));
-app.use(errorHandler);
+  app = express();
+  app.use(express.json());
+  app.use(createProductRouter(productService, deleteProductUseCase));
+  app.use(errorHandler);
+});
 
 describe('상품 에러 테스트', () => {
   describe('상품 추가 에러 테스트', () => {
@@ -68,6 +78,19 @@ describe('상품 에러 테스트', () => {
       expect(addRes.status).toBe(400);
       expect(addRes.body.code).toBe('INVALID_IMAGE_URL');
       expect(addRes.body.message).toEqual('유효하지 않은 이미지 경로입니다.');
+    });
+
+    test('상품 추가 시, 도메인 검증(수량 범위)에 걸리면 INVALID_REMAINING_QUANTITY 에러를 반환한다.', async () => {
+      const addRes = await request(app).post('/products').send({
+        productName: '콜라',
+        productPrice: 1300,
+        remainingQuantity: 100,
+        imageUrl: 'src/assets/coke.png',
+      });
+
+      expect(addRes.status).toBe(400);
+      expect(addRes.body.code).toBe('INVALID_REMAINING_QUANTITY');
+      expect(addRes.body.message).toEqual('유효하지 않은 상품 수량입니다.');
     });
   });
 

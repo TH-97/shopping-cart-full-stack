@@ -1,4 +1,4 @@
-import { ModelError } from '../../errors/ModelError.js';
+import { invalidPurchaseQuantityError } from '../../errors/domainErrors.js';
 
 export type Type = {
   cartItemId: string;
@@ -26,10 +26,7 @@ export class CartItem {
 
   private validatePurchaseQuantity(quantity: number) {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-      throw new ModelError(
-        'INVALID_PURCHASE_QUANTITY',
-        '유효하지 않은 구매 수량입니다.',
-      );
+      throw invalidPurchaseQuantityError();
     }
   }
 }

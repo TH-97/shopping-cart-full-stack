@@ -1,40 +1,43 @@
 import express from 'express';
 import request from 'supertest';
-import { cartItemsDB, productsDB } from '../../../src/db.js';
 import { errorHandler } from '../../../src/middlewares/errorHandlers.js';
-import { cartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
+import { createCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
 import { createCartItemRouter } from '../../../src/modules/cart/cartItem.routes.js';
 import { CartItemService } from '../../../src/modules/cart/cartItem.service.js';
 import { Product } from '../../../src/modules/products/product.model.js';
-import { productRepository } from '../../../src/modules/products/product.repository.js';
+import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 
-const cartItemService = new CartItemService(
-  cartItemRepository,
-  productRepository,
-);
+let productRepository: ReturnType<typeof createProductRepository>;
+let app: express.Express;
 
-const app = express();
+beforeEach(() => {
+  productRepository = createProductRepository(new Map());
+  const cartItemRepository = createCartItemRepository(new Map());
+  const cartItemService = new CartItemService(
+    cartItemRepository,
+    productRepository,
+  );
 
-app.use(express.json());
-app.use(createCartItemRouter(cartItemService));
-app.use(errorHandler);
+  app = express();
+  app.use(express.json());
+  app.use(createCartItemRouter(cartItemService));
+  app.use(errorHandler);
+});
 
-const createProduct = (productId = 'product-1', remainingQuantity = 10) =>
-  new Product({
+const seedProduct = (productId = 'product-1', remainingQuantity = 10) => {
+  const product = new Product({
     productId,
     productName: '콜라',
     productPrice: 1300,
     remainingQuantity,
     imageUrl: 'src/assets/coke.png',
   });
+  productRepository.save(product);
+  return product;
+};
 
 describe('장바구니 에러 테스트', () => {
   describe('장바구니 상품 추가 에러 테스트', () => {
-    beforeEach(() => {
-      productsDB.clear();
-      cartItemsDB.clear();
-    });
-
     test('장바구니 상품 추가 시, productId가 유효하지 않은 경우 INVALID_PRODUCT_ID 에러를 반환한다.', async () => {
       const addRes = await request(app).post('/cart/items').send({
         purchaseQuantity: 1,
@@ -57,8 +60,7 @@ describe('장바구니 에러 테스트', () => {
     });
 
     test('장바구니 상품 추가 시, 구매 수량이 유효하지 않은 경우 INVALID_PURCHASE_QUANTITY 에러를 반환한다.', async () => {
-      const product = createProduct();
-      productsDB.set(product.productId, product);
+      const product = seedProduct();
 
       const addRes = await request(app).post('/cart/items').send({
         productId: product.productId,
@@ -69,9 +71,8 @@ describe('장바구니 에러 테스트', () => {
       expect(addRes.body.message).toBe('유효하지 않은 구매 수량입니다.');
     });
 
-    test('장바구니 상품 추가 시, 구매 수량이 상품의 남은 수량보다 많은 경우 EXCEEDS_REMAINING_QUANTITY 에러를 반환한다.', async () => {
-      const product = createProduct('product-1', 1);
-      productsDB.set(product.productId, product);
+    test('장바구니 상품 추가 시, 구매 수량이 상품의 남은 수량보다 많으면 EXCEEDS_REMAINING_QUANTITY 에러를 반환한다.', async () => {
+      const product = seedProduct('product-1', 1);
 
       const addRes = await request(app).post('/cart/items').send({
         productId: product.productId,
@@ -84,8 +85,7 @@ describe('장바구니 에러 테스트', () => {
     });
 
     test('이미 장바구니에 담긴 상품을 다시 추가할 때 합산 수량이 상품의 남은 수량보다 많으면 EXCEEDS_REMAINING_QUANTITY 에러를 반환한다.', async () => {
-      const product = createProduct('product-1', 1);
-      productsDB.set(product.productId, product);
+      const product = seedProduct('product-1', 1);
 
       await request(app).post('/cart/items').send({
         productId: product.productId,
@@ -104,11 +104,6 @@ describe('장바구니 에러 테스트', () => {
   });
 
   describe('장바구니 상품 수량 변경 에러 테스트', () => {
-    beforeEach(() => {
-      productsDB.clear();
-      cartItemsDB.clear();
-    });
-
     test('장바구니 상품 수량 변경 시, cartItemId 형식이 유효하지 않은 경우 INVALID_CART_ITEM_ID 에러를 반환한다.', async () => {
       const patchRes = await request(app)
         .patch('/cart/items/%20')
@@ -116,9 +111,7 @@ describe('장바구니 에러 테스트', () => {
 
       expect(patchRes.status).toBe(400);
       expect(patchRes.body.code).toBe('INVALID_CART_ITEM_ID');
-      expect(patchRes.body.message).toBe(
-        '유효하지 않은 장바구니 상품 id입니다.',
-      );
+      expect(patchRes.body.message).toBe('유효하지 않은 장바구니 상품 id입니다.');
     });
 
     test('장바구니 상품 수량 변경 시, 해당 장바구니 상품이 존재하지 않는 경우 CART_ITEM_NOT_FOUND 에러를 반환한다.', async () => {
@@ -132,8 +125,7 @@ describe('장바구니 에러 테스트', () => {
     });
 
     test('장바구니 상품 수량 변경 시, 구매 수량이 유효하지 않은 경우 INVALID_PURCHASE_QUANTITY 에러를 반환한다.', async () => {
-      const product = createProduct();
-      productsDB.set(product.productId, product);
+      const product = seedProduct();
 
       const addRes = await request(app).post('/cart/items').send({
         productId: product.productId,
@@ -149,9 +141,8 @@ describe('장바구니 에러 테스트', () => {
       expect(patchRes.body.message).toBe('유효하지 않은 구매 수량입니다.');
     });
 
-    test('장바구니 상품 수량 변경 시, 변경하려는 수량이 상품의 남은 수량보다 많은 경우 EXCEEDS_REMAINING_QUANTITY 에러를 반환한다.', async () => {
-      const product = createProduct('product-1', 1);
-      productsDB.set(product.productId, product);
+    test('장바구니 상품 수량 변경 시, 변경 수량이 상품의 남은 수량보다 많으면 EXCEEDS_REMAINING_QUANTITY 에러를 반환한다.', async () => {
+      const product = seedProduct('product-1', 1);
 
       const addRes = await request(app).post('/cart/items').send({
         productId: product.productId,
@@ -169,11 +160,6 @@ describe('장바구니 에러 테스트', () => {
   });
 
   describe('장바구니 상품 제거 에러 테스트', () => {
-    beforeEach(() => {
-      productsDB.clear();
-      cartItemsDB.clear();
-    });
-
     test('장바구니 상품 제거 시, 해당 장바구니 상품이 존재하지 않는 경우 CART_ITEM_NOT_FOUND 에러를 반환한다.', async () => {
       const deleteRes = await request(app).delete(
         '/cart/items/unknown-cart-item-id',

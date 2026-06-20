@@ -1,9 +1,22 @@
-import { AppError } from '../../errors/AppError.js';
-import { ModelError } from '../../errors/ModelError.js';
+import {
+  cartItemNotFoundError,
+  exceedsRemainingQuantityError,
+  productNotFoundError,
+} from '../../errors/domainErrors.js';
 import type { Product } from '../products/product.model.js';
 import type { ProductRepository } from '../products/product.repository.js';
 import { CartItem } from './cartItem.model.js';
 import type { CartItemRepository } from './cartItem.repository.js';
+
+type AddCartItemCommand = {
+  productId: string;
+  purchaseQuantity: number;
+};
+
+type ChangeCartItemQuantityCommand = {
+  cartItemId: string;
+  purchaseQuantity: number;
+};
 
 export class CartItemService {
   constructor(
@@ -11,145 +24,88 @@ export class CartItemService {
     private readonly productRepository: ProductRepository,
   ) {}
 
-  addCartItem(productId: string, purchaseQuantity: number) {
-    const product = this.validateProductId(productId);
+  // 장바구니 항목과 그 상품을 조인해 도메인 데이터로 반환한다.
+  // 응답 모양 변환은 경계(dto/controller)의 책임이므로 여기선 하지 않는다.
+  getCartItems() {
+    return this.cartItemRepository.findAll().map((cartItem) => ({
+      cartItem,
+      product: this.productRepository.findById(cartItem.productId),
+    }));
+  }
 
-    // 추가하려는 상품이 장바구니에 이미 존재할 경우
-    const foundCartItem = this.cartItemRepository.findByProductId(productId);
-    if (foundCartItem) {
-      const nextPurchaseQuantity =
-        foundCartItem.purchaseQuantity + purchaseQuantity;
+  addCartItem(command: AddCartItemCommand) {
+    const product = this.getExistingProduct(command.productId);
 
-      this.validateRemainingQuantity(product, nextPurchaseQuantity);
-      this.convertModelError(() =>
-        foundCartItem.changeQuantityTo(nextPurchaseQuantity),
-      );
-
-      return { cartItemId: foundCartItem.cartItemId, isNew: false };
-    }
-
-    // 추가하려는 상품이 장바구니에 존재하지 않는 경우
-    this.validateRemainingQuantity(product, purchaseQuantity);
-    const cartItem = this.convertModelError(
-      () =>
-        new CartItem({
-          cartItemId: crypto.randomUUID(),
-          productId,
-          purchaseQuantity,
-        }),
+    const existing = this.cartItemRepository.findByProductId(
+      command.productId,
     );
 
+    if (existing) return this.increaseQuantity(existing, command, product);
+
+    return this.createCartItem(command, product);
+  }
+
+  changeQuantity(command: ChangeCartItemQuantityCommand): void {
+    const cartItem = this.cartItemRepository.findById(command.cartItemId);
+
+    if (!cartItem) throw cartItemNotFoundError();
+
+    const product = this.getExistingProduct(cartItem.productId);
+    this.assertWithinStock(product, command.purchaseQuantity);
+
+    cartItem.changeQuantityTo(command.purchaseQuantity);
     this.cartItemRepository.save(cartItem);
-    return { cartItemId: cartItem.cartItemId, isNew: true };
   }
 
-  getCartItems() {
-    // CartItem은 productId만 보관하므로, 응답 시점에 상품 정보를 조회해 합친다
-    return this.cartItemRepository.findAll().map((cartItem) => {
-      const product = this.productRepository.findById(cartItem.productId);
+  deleteCartItem(cartItemId: string): void {
+    const cartItem = this.cartItemRepository.findById(cartItemId);
 
-      return {
-        cartItemId: cartItem.cartItemId,
-        productId: cartItem.productId,
-        productName: product?.productName,
-        productPrice: product?.productPrice,
-        imageUrl: product?.imageUrl,
-        purchaseQuantity: cartItem.purchaseQuantity,
-      };
-    });
-  }
+    if (!cartItem) throw cartItemNotFoundError();
 
-  getCartItemById(cartItemId: string) {
-    return this.validateCartItemId(cartItemId);
-  }
-
-  deleteCartItem(cartItemId: string) {
-    const cartItem = this.validateCartItemId(cartItemId);
     this.cartItemRepository.deleteById(cartItem.cartItemId);
   }
 
-  deleteByProductId(productId: string) {
+  removeItemsByProductId(productId: string): void {
     this.cartItemRepository.deleteByProductId(productId);
   }
 
-  changePurchaseQuantity(cartItemId: string, quantity: number) {
-    const cartItem = this.validateCartItemId(cartItemId);
-
-    // 이중 검증
-    const product = this.productRepository.findById(cartItem.productId);
-    if (!product) {
-      throw new AppError(404, 'PRODUCT_NOT_FOUND', '존재하지 않는 상품입니다.');
-    }
-
-    this.validateRemainingQuantity(product, quantity);
-    this.convertModelError(() => cartItem.changeQuantityTo(quantity));
-
-    return {
-      cartItemId: cartItem.cartItemId,
-      purchaseQuantity: cartItem.purchaseQuantity,
-    };
-  }
-
-  private validateCartItemId(cartItemId: string) {
-    if (typeof cartItemId !== 'string' || cartItemId.trim() === '') {
-      throw new AppError(
-        400,
-        'INVALID_CART_ITEM_ID',
-        '유효하지 않은 장바구니 상품 id입니다.',
-      );
-    }
-
-    const cartItem = this.cartItemRepository.findById(cartItemId);
-
-    if (!cartItem) {
-      throw new AppError(
-        404,
-        'CART_ITEM_NOT_FOUND',
-        '존재하지 않는 장바구니 상품입니다.',
-      );
-    }
-
-    return cartItem;
-  }
-
-  private validateProductId(productId: string) {
-    if (typeof productId !== 'string' || productId.trim() === '') {
-      throw new AppError(
-        400,
-        'INVALID_PRODUCT_ID',
-        '유효하지 않은 상품 id입니다.',
-      );
-    }
-
+  private getExistingProduct(productId: string): Product {
     const product = this.productRepository.findById(productId);
-
-    if (!product) {
-      throw new AppError(404, 'PRODUCT_NOT_FOUND', '존재하지 않는 상품입니다.');
-    }
-
+    if (!product) throw productNotFoundError();
     return product;
   }
 
-  private validateRemainingQuantity(product: Product, purchaseQuantity: number) {
-    if (purchaseQuantity > product.remainingQuantity) {
-      throw new AppError(
-        400,
-        'EXCEEDS_REMAINING_QUANTITY',
-        '상품의 남은 수량을 초과했습니다.',
-      );
+  // 장바구니 수량은 상품의 남은 수량(remainingQuantity)을 넘을 수 없다.
+  private assertWithinStock(product: Product, quantity: number): void {
+    if (quantity > product.remainingQuantity) {
+      throw exceedsRemainingQuantityError();
     }
   }
 
-  // Model이 던지는 도메인 에러(ModelError)를 HTTP 계층이 이해하는 AppError로 변환한다
-  private convertModelError<T>(operation: () => T): T {
-    try {
-      return operation();
-    } catch (error) {
-      if (error instanceof ModelError) {
-        throw new AppError(400, error.code, error.message);
-      }
+  private increaseQuantity(
+    cartItem: CartItem,
+    command: AddCartItemCommand,
+    product: Product,
+  ) {
+    const nextQuantity = cartItem.purchaseQuantity + command.purchaseQuantity;
+    this.assertWithinStock(product, nextQuantity);
 
-      throw error;
-    }
+    cartItem.changeQuantityTo(nextQuantity);
+    this.cartItemRepository.save(cartItem);
+
+    return { cartItemId: cartItem.cartItemId, isNew: false };
+  }
+
+  private createCartItem(command: AddCartItemCommand, product: Product) {
+    const cartItem = new CartItem({
+      cartItemId: crypto.randomUUID(),
+      productId: command.productId,
+      purchaseQuantity: command.purchaseQuantity,
+    });
+    this.assertWithinStock(product, command.purchaseQuantity);
+
+    this.cartItemRepository.save(cartItem);
+
+    return { cartItemId: cartItem.cartItemId, isNew: true };
   }
 }

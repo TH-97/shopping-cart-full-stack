@@ -1,12 +1,13 @@
 import express from 'express';
 import request from 'supertest';
-import { cartItemsDB, productsDB } from '../../../src/db.js';
+import { errorHandler } from '../../../src/middlewares/errorHandlers.js';
 import { CartItem } from '../../../src/modules/cart/cartItem.model.js';
-import { cartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
+import { createCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
 import { CartItemService } from '../../../src/modules/cart/cartItem.service.js';
-import { productRepository } from '../../../src/modules/products/product.repository.js';
+import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 import { createProductRouter } from '../../../src/modules/products/product.routes.js';
 import { ProductService } from '../../../src/modules/products/product.service.js';
+import { DeleteProductUseCase } from '../../../src/application/deleteProduct.usecase.js';
 
 const mockProduct = {
   productId: '1',
@@ -16,28 +17,55 @@ const mockProduct = {
   imageUrl: 'src/assets/test.png',
 };
 
-const productService = new ProductService(productRepository);
-const cartItemService = new CartItemService(
-  cartItemRepository,
-  productRepository,
-);
+let cartItemRepository: ReturnType<typeof createCartItemRepository>;
+let app: express.Express;
 
-const app = express();
+beforeEach(() => {
+  const productRepository = createProductRepository(new Map());
+  cartItemRepository = createCartItemRepository(new Map());
+  const productService = new ProductService(productRepository);
+  const cartItemService = new CartItemService(
+    cartItemRepository,
+    productRepository,
+  );
+  const deleteProductUseCase = new DeleteProductUseCase(
+    productService,
+    cartItemService,
+  );
 
-app.use(express.json());
-app.use(createProductRouter(productService, cartItemService));
+  app = express();
+  app.use(express.json());
+  app.use(createProductRouter(productService, deleteProductUseCase));
+  app.use(errorHandler);
+});
 
 describe('상품 API', () => {
-  beforeEach(() => {
-    productsDB.clear();
-    cartItemsDB.clear();
-  });
-
   it('상품 목록 요청', async () => {
     const response = await request(app).get('/products');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([]);
+  });
+  it('상품 목록 요청 시 응답 모양으로 변환되어 내려온다', async () => {
+    const created = await request(app).post('/products').send({
+      productName: mockProduct.productName,
+      productPrice: mockProduct.productPrice,
+      remainingQuantity: mockProduct.remainingQuantity,
+      imageUrl: mockProduct.imageUrl,
+    });
+
+    const response = await request(app).get('/products');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([
+      {
+        productId: created.body.productId,
+        productName: mockProduct.productName,
+        productPrice: mockProduct.productPrice,
+        remainingQuantity: mockProduct.remainingQuantity,
+        imageUrl: mockProduct.imageUrl,
+      },
+    ]);
   });
   it('상품 추가', async () => {
     const response = await request(app).post('/products').send({

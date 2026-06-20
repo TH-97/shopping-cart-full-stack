@@ -1,23 +1,31 @@
-import { productsDB } from '../../db.js';
 import type { Product } from './product.model.js';
 
-export const productRepository = {
+export interface ProductRepository {
+  save(product: Product): Product;
+  findAll(): Product[];
+  findById(productId: string): Product | undefined;
+  deleteById(productId: string): boolean;
+}
+
+const createMemoryProductRepository = (
+  store: Map<string, Product>,
+): ProductRepository => ({
   save(product: Product) {
-    productsDB.set(product.productId, product);
+    store.set(product.productId, product);
     return product;
   },
 
   findAll() {
-    return Array.from(productsDB.values());
+    return Array.from(store.values());
   },
 
   findById(productId: string) {
-    return productsDB.get(productId);
+    return store.get(productId);
   },
 
   deleteById(productId: string) {
-    return productsDB.delete(productId);
+    return store.delete(productId);
   },
-};
+});
 
-export type ProductRepository = typeof productRepository;
+export const createProductRepository = createMemoryProductRepository;

@@ -1,6 +1,5 @@
-import { productsDB } from '../../../src/db.js';
 import { Product } from '../../../src/modules/products/product.model.js';
-import { productRepository } from '../../../src/modules/products/product.repository.js';
+import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 
 const createProduct = (productId = '1') =>
   new Product({
@@ -12,8 +11,10 @@ const createProduct = (productId = '1') =>
   });
 
 describe('ProductRepository', () => {
+  let productRepository: ReturnType<typeof createProductRepository>;
+
   beforeEach(() => {
-    productsDB.clear();
+    productRepository = createProductRepository(new Map());
   });
 
   test('상품을 저장한다', () => {

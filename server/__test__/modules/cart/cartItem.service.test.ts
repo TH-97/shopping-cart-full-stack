@@ -1,149 +1,235 @@
-//서비스와 레포지를 이용해서 기능을 도작하게 한다
-
-import { cartItemsDB, productsDB } from '../../../src/db.js';
 import { CartItem } from '../../../src/modules/cart/cartItem.model.js';
 import {
-  cartItemRepository,
+  createCartItemRepository,
   type CartItemRepository,
 } from '../../../src/modules/cart/cartItem.repository.js';
 import { CartItemService } from '../../../src/modules/cart/cartItem.service.js';
 import { Product } from '../../../src/modules/products/product.model.js';
 import {
-  productRepository,
+  createProductRepository,
   type ProductRepository,
 } from '../../../src/modules/products/product.repository.js';
 
-const createProduct = (productId: string) =>
+const createProduct = (productId: string, remainingQuantity = 25) =>
   new Product({
     productId,
     productName: '콜라',
     productPrice: 1300,
-    remainingQuantity: 25,
+    remainingQuantity,
     imageUrl: 'src/assets/coke.png',
   });
 
-const cartItemService = new CartItemService(
-  cartItemRepository,
-  productRepository,
-);
-
 describe('CartItemService', () => {
+  let productRepository: ReturnType<typeof createProductRepository>;
+  let cartItemRepository: ReturnType<typeof createCartItemRepository>;
+  let cartItemService: CartItemService;
+
   beforeEach(() => {
-    cartItemsDB.clear();
-    productsDB.clear();
-    productsDB.set('1', createProduct('1'));
-    productsDB.set('2', createProduct('2'));
+    productRepository = createProductRepository(new Map());
+    cartItemRepository = createCartItemRepository(new Map());
+    cartItemService = new CartItemService(
+      cartItemRepository,
+      productRepository,
+    );
+
+    productRepository.save(createProduct('1'));
+    productRepository.save(createProduct('2'));
   });
 
-  // 상품을 조회하는 기능
-  describe('상품 조회 기능 테스트', () => {
-    test('', () => {
-      // given
-      const cartItemA = cartItemService.addCartItem('1', 1);
-
-      const cartItemB = cartItemService.addCartItem('2', 1);
-
-      // when
-      const cartItems = cartItemService.getCartItems();
-
-      // then
-      expect(cartItems).toHaveLength(2);
-      expect(cartItems[0].cartItemId).toBe(cartItemA.cartItemId);
-      expect(cartItems[1].cartItemId).toBe(cartItemB.cartItemId);
-    });
-
-    test('장바구니 목록 조회 시 상품 정보(이름/가격/이미지)를 함께 반환한다.', () => {
-      // given
-      cartItemService.addCartItem('1', 2);
-
-      // when
-      const cartItems = cartItemService.getCartItems();
-
-      // then
-      expect(cartItems[0]).toEqual({
-        cartItemId: expect.any(String),
+  describe('목록 조회', () => {
+    test('담긴 순서대로 장바구니 목록을 조회한다', () => {
+      const cartItemA = cartItemService.addCartItem({
         productId: '1',
-        productName: '콜라',
-        productPrice: 1300,
-        imageUrl: 'src/assets/coke.png',
-        purchaseQuantity: 2,
+        purchaseQuantity: 1,
       });
-    });
-
-    test('존재하지 않은 장바구니 상품 조회 시 에러를 반환한다.', () => {
-      expect(() => {
-        cartItemService.getCartItemById('1123');
-      }).toThrow('존재하지 않는 장바구니 상품입니다.');
-    });
-  });
-
-  // 상품을 추가하는 기능
-  describe('상품 추가 기능 테스트', () => {
-    test('상품을 추가할 수 있다.', () => {
-      // given
-      const response = cartItemService.addCartItem('1', 1);
-
-      // when
-      const cartItems = cartItemService.getCartItems();
-
-      // then
-      expect(cartItems).toHaveLength(1);
-      expect(cartItems[0].cartItemId).toBe(response.cartItemId);
-    });
-
-    test('장바구니에 이미 존재하는 상품을 다시 추가할 경우 장바구니에 담긴 수량을 1 증가시킨다.', () => {
-      // given
-      const responseA = cartItemService.addCartItem('1', 1);
-
-      // when
-      const responseB = cartItemService.addCartItem('1', 1);
+      const cartItemB = cartItemService.addCartItem({
+        productId: '2',
+        purchaseQuantity: 1,
+      });
 
       const cartItems = cartItemService.getCartItems();
 
-      // then
-      expect(cartItems).toHaveLength(1);
-      expect(cartItems[0].purchaseQuantity).toBe(2);
+      expect(cartItems).toHaveLength(2);
+      expect(cartItems[0].cartItem.cartItemId).toBe(cartItemA.cartItemId);
+      expect(cartItems[1].cartItem.cartItemId).toBe(cartItemB.cartItemId);
+    });
+
+    test('장바구니 목록 조회 시 항목과 상품을 조인해 반환한다', () => {
+      cartItemService.addCartItem({ productId: '1', purchaseQuantity: 2 });
+
+      const cartItems = cartItemService.getCartItems();
+
+      expect(cartItems[0].cartItem.productId).toBe('1');
+      expect(cartItems[0].cartItem.purchaseQuantity).toBe(2);
+      expect(cartItems[0].product?.productName).toBe('콜라');
+    });
+
+    test('상품 정보가 누락된 장바구니 항목은 product를 undefined로 반환한다', () => {
+      cartItemRepository.save(
+        new CartItem({
+          cartItemId: 'orphan-1',
+          productId: 'missing-product',
+          purchaseQuantity: 3,
+        }),
+      );
+
+      const cartItems = cartItemService.getCartItems();
+
+      expect(cartItems[0].cartItem.cartItemId).toBe('orphan-1');
+      expect(cartItems[0].product).toBeUndefined();
     });
   });
 
-  // 상품을 삭제하는 기능
-  describe('상품 삭제 기능 테스트', () => {
-    test('상품을 삭제할 수 있다.', () => {
-      // given
-      const response = cartItemService.addCartItem('1', 1);
+  describe('추가', () => {
+    test('상품을 장바구니에 추가한다', () => {
+      const response = cartItemService.addCartItem({
+        productId: '1',
+        purchaseQuantity: 1,
+      });
+
+      const cartItems = cartItemService.getCartItems();
+
+      expect(cartItems).toHaveLength(1);
+      expect(cartItems[0].cartItem.cartItemId).toBe(response.cartItemId);
+      expect(response.isNew).toBe(true);
+    });
+
+    test('이미 존재하는 상품을 다시 추가하면 수량을 합산한다', () => {
+      cartItemService.addCartItem({ productId: '1', purchaseQuantity: 1 });
+
+      const response = cartItemService.addCartItem({
+        productId: '1',
+        purchaseQuantity: 1,
+      });
+      const cartItems = cartItemService.getCartItems();
+
+      expect(cartItems).toHaveLength(1);
+      expect(cartItems[0].cartItem.purchaseQuantity).toBe(2);
+      expect(response.isNew).toBe(false);
+    });
+
+    test('구매 수량 경계값 1을 추가할 수 있다', () => {
+      expect(
+        cartItemService.addCartItem({ productId: '1', purchaseQuantity: 1 }),
+      ).toBeDefined();
+    });
+
+    test('구매 수량 0은 INVALID_PURCHASE_QUANTITY 에러를 던진다', () => {
+      expect(() =>
+        cartItemService.addCartItem({ productId: '1', purchaseQuantity: 0 }),
+      ).toThrow('유효하지 않은 구매 수량입니다.');
+    });
+
+    test('구매 수량 100은 INVALID_PURCHASE_QUANTITY 에러를 던진다', () => {
+      productRepository.save(createProduct('99', 99));
+
+      expect(() =>
+        cartItemService.addCartItem({ productId: '99', purchaseQuantity: 100 }),
+      ).toThrow('유효하지 않은 구매 수량입니다.');
+    });
+
+    test('구매 수량이 소수이면 INVALID_PURCHASE_QUANTITY 에러를 던진다', () => {
+      expect(() =>
+        cartItemService.addCartItem({ productId: '1', purchaseQuantity: 1.5 }),
+      ).toThrow('유효하지 않은 구매 수량입니다.');
+    });
+
+    test('구매 수량이 상품의 남은 수량을 초과하면 EXCEEDS_REMAINING_QUANTITY 에러를 던진다', () => {
+      productRepository.save(createProduct('limited', 1));
+
+      expect(() =>
+        cartItemService.addCartItem({
+          productId: 'limited',
+          purchaseQuantity: 2,
+        }),
+      ).toThrow('상품의 남은 수량을 초과했습니다.');
+    });
+
+    test('이미 담긴 상품을 다시 담을 때 합산 수량이 남은 수량을 초과하면 EXCEEDS_REMAINING_QUANTITY 에러를 던진다', () => {
+      productRepository.save(createProduct('limited', 2));
+      cartItemService.addCartItem({ productId: 'limited', purchaseQuantity: 1 });
+
+      expect(() =>
+        cartItemService.addCartItem({
+          productId: 'limited',
+          purchaseQuantity: 2,
+        }),
+      ).toThrow('상품의 남은 수량을 초과했습니다.');
+    });
+  });
+
+  describe('삭제', () => {
+    test('장바구니 항목을 삭제한다', () => {
+      const response = cartItemService.addCartItem({
+        productId: '1',
+        purchaseQuantity: 1,
+      });
 
       cartItemService.deleteCartItem(response.cartItemId);
 
-      // when
       const cartItems = cartItemService.getCartItems();
-
-      // then
       expect(cartItems).toHaveLength(0);
     });
 
-    test('존재하지 않은 장바구니 상품 삭제 시 에러를 반환한다.', () => {
-      expect(() => {
-        cartItemService.deleteCartItem('1');
-      }).toThrow('존재하지 않는 장바구니 상품입니다.');
+    test('존재하지 않은 장바구니 상품 삭제 시 에러를 반환한다', () => {
+      expect(() => cartItemService.deleteCartItem('1')).toThrow(
+        '존재하지 않는 장바구니 상품입니다.',
+      );
     });
   });
 
-  // 상품의 개수를 수정하는 기능
-  describe('상품 개수 수정 기능 테스트', () => {
-    test('수량 변경한다', () => {
-      const response = cartItemService.addCartItem('1', 1);
+  describe('수량 변경', () => {
+    test('수량을 변경한다', () => {
+      const response = cartItemService.addCartItem({
+        productId: '1',
+        purchaseQuantity: 1,
+      });
 
-      cartItemService.changePurchaseQuantity(response.cartItemId, 2);
+      cartItemService.changeQuantity({
+        cartItemId: response.cartItemId,
+        purchaseQuantity: 2,
+      });
 
-      const cartItem = cartItemService.getCartItemById(response.cartItemId);
+      const cartItem = cartItemRepository.findById(response.cartItemId);
+      expect(cartItem?.purchaseQuantity).toEqual(2);
+    });
 
-      expect(cartItem.purchaseQuantity).toEqual(2);
+    test('수량 변경 경계값 99로 변경할 수 있다', () => {
+      productRepository.save(createProduct('99', 99));
+      const response = cartItemService.addCartItem({
+        productId: '99',
+        purchaseQuantity: 1,
+      });
+
+      expect(() =>
+        cartItemService.changeQuantity({
+          cartItemId: response.cartItemId,
+          purchaseQuantity: 99,
+        }),
+      ).not.toThrow();
+    });
+
+    test('변경 수량이 상품의 남은 수량을 초과하면 EXCEEDS_REMAINING_QUANTITY 에러를 던진다', () => {
+      productRepository.save(createProduct('limited', 1));
+      const response = cartItemService.addCartItem({
+        productId: 'limited',
+        purchaseQuantity: 1,
+      });
+
+      expect(() =>
+        cartItemService.changeQuantity({
+          cartItemId: response.cartItemId,
+          purchaseQuantity: 2,
+        }),
+      ).toThrow('상품의 남은 수량을 초과했습니다.');
+
+      const cartItem = cartItemRepository.findById(response.cartItemId);
+      expect(cartItem?.purchaseQuantity).toBe(1);
     });
   });
 
-  // 의존성 주입: 실제 저장소 없이 가짜 repository를 주입해 동작을 검증할 수 있다
-  describe('repository 주입 테스트', () => {
-    test('주입한 repository로 장바구니 목록을 조회한다.', () => {
+  describe('repository 주입', () => {
+    test('주입한 repository로 장바구니 목록을 조회한다', () => {
       const storedCartItem = new CartItem({
         cartItemId: 'c1',
         productId: 'p1',
@@ -156,7 +242,7 @@ describe('CartItemService', () => {
         findById: () => undefined,
         findByProductId: () => undefined,
         deleteById: () => true,
-        deleteByProductId: () => {},
+        deleteByProductId: () => undefined,
       };
       const fakeProductRepository: ProductRepository = {
         findById: () => createProduct('p1'),
@@ -170,16 +256,11 @@ describe('CartItemService', () => {
         fakeProductRepository,
       );
 
-      expect(service.getCartItems()).toEqual([
-        {
-          cartItemId: 'c1',
-          productId: 'p1',
-          productName: '콜라',
-          productPrice: 1300,
-          imageUrl: 'src/assets/coke.png',
-          purchaseQuantity: 3,
-        },
-      ]);
+      const cartItems = service.getCartItems();
+
+      expect(cartItems).toHaveLength(1);
+      expect(cartItems[0].cartItem).toBe(storedCartItem);
+      expect(cartItems[0].product?.productId).toBe('p1');
     });
   });
 });

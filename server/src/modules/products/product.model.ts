@@ -1,4 +1,8 @@
-import { ModelError } from '../../errors/ModelError.js';
+import {
+  invalidProductNameError,
+  invalidProductPriceError,
+  invalidRemainingQuantityError,
+} from '../../errors/domainErrors.js';
 
 export type Type = {
   productId: string;
@@ -16,7 +20,7 @@ export class Product {
   imageUrl?;
 
   constructor(product: Type) {
-    this.validator(product);
+    this.validate(product);
 
     this.productId = product.productId;
     this.productName = product.productName;
@@ -25,49 +29,28 @@ export class Product {
     this.imageUrl = product.imageUrl;
   }
 
-  validator(product: Type) {
-    validateProductName(product.productName);
-    validateProductPrice(product.productPrice);
-    validateRemainingQuantity(product.remainingQuantity);
+  private validate(product: Type) {
+    this.validateProductName(product.productName);
+    this.validateProductPrice(product.productPrice);
+    this.validateRemainingQuantity(product.remainingQuantity);
+  }
+
+  private validateProductName(productName: string) {
+    if (productName.trim() === '' || productName.length > 100)
+      throw invalidProductNameError();
+  }
+
+  private validateProductPrice(productPrice: number) {
+    if (!Number.isFinite(productPrice) || productPrice <= 0)
+      throw invalidProductPriceError();
+  }
+
+  private validateRemainingQuantity(remainingQuantity: number) {
+    if (
+      !Number.isInteger(remainingQuantity) ||
+      remainingQuantity < 1 ||
+      remainingQuantity > 99
+    )
+      throw invalidRemainingQuantityError();
   }
 }
-
-const validateProductName = (productName: string) => {
-  if (productName.trim() === '' || productName.length > 100)
-    throwInvalidProductName();
-};
-
-const validateProductPrice = (productPrice: number) => {
-  if (!Number.isFinite(productPrice) || productPrice <= 0)
-    throwInvalidProductPrice();
-};
-
-const validateRemainingQuantity = (remainingQuantity: number) => {
-  if (
-    !Number.isInteger(remainingQuantity) ||
-    remainingQuantity < 1 ||
-    remainingQuantity > 99
-  )
-    throwInvalidRemainingQuantity();
-};
-
-const throwInvalidProductName = () => {
-  throw new ModelError(
-    'INVALID_PRODUCT_NAME',
-    '유효하지 않은 상품 이름입니다.',
-  );
-};
-
-const throwInvalidProductPrice = () => {
-  throw new ModelError(
-    'INVALID_PRODUCT_PRICE',
-    '유효하지 않은 상품 가격입니다.',
-  );
-};
-
-const throwInvalidRemainingQuantity = () => {
-  throw new ModelError(
-    'INVALID_REMAINING_QUANTITY',
-    '유효하지 않은 상품 수량입니다.',
-  );
-};

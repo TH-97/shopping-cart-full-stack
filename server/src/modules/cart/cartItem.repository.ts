@@ -1,40 +1,45 @@
-import { cartItemsDB } from '../../db.js';
-import { CartItem } from './cartItem.model.js';
+import type { CartItem } from './cartItem.model.js';
 
-export const cartItemRepository = {
+export interface CartItemRepository {
+  save(cartItem: CartItem): CartItem;
+  findAll(): CartItem[];
+  findById(cartItemId: string): CartItem | undefined;
+  findByProductId(productId: string): CartItem | undefined;
+  deleteById(cartItemId: string): boolean;
+  deleteByProductId(productId: string): void;
+}
+
+const createMemoryCartItemRepository = (
+  store: Map<string, CartItem>,
+): CartItemRepository => ({
   save(cartItem: CartItem) {
-    cartItemsDB.set(cartItem.cartItemId, cartItem);
+    store.set(cartItem.cartItemId, cartItem);
     return cartItem;
   },
 
   findAll() {
-    return Array.from(cartItemsDB.values());
+    return Array.from(store.values());
   },
 
   findById(cartItemId: string) {
-    return cartItemsDB.get(cartItemId);
+    return store.get(cartItemId);
   },
+
   findByProductId(productId: string) {
-    const cartItem = [...cartItemsDB.values()].find(
-      (cardItem) => cardItem.productId === productId,
+    return [...store.values()].find(
+      (cartItem) => cartItem.productId === productId,
     );
-
-    if (cartItem) return cartItem;
-
-    return undefined;
   },
 
   deleteById(cartItemId: string) {
-    return cartItemsDB.delete(cartItemId);
+    return store.delete(cartItemId);
   },
 
   deleteByProductId(productId: string) {
-    const cartItem = [...cartItemsDB.values()].find(
-      (cardItem) => cardItem.productId === productId,
-    );
-
-    if (cartItem) cartItemsDB.delete(cartItem.cartItemId);
+    [...store.values()]
+      .filter((cartItem) => cartItem.productId === productId)
+      .forEach((cartItem) => store.delete(cartItem.cartItemId));
   },
-};
+});
 
-export type CartItemRepository = typeof cartItemRepository;
+export const createCartItemRepository = createMemoryCartItemRepository;

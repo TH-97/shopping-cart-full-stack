@@ -1,131 +1,82 @@
-//서비스와 레포지를 이용해서 기능을 도작하게 한다
-
-import { cartItemsDB, productsDB } from '../../../src/db.js';
-import { CartItem } from '../../../src/modules/cart/cartItem.model.js';
-import { cartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
-import { productRepository } from '../../../src/modules/products/product.repository.js';
+import { Product } from '../../../src/modules/products/product.model.js';
+import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 import { ProductService } from '../../../src/modules/products/product.service.js';
 
-const productService = new ProductService(productRepository);
+const createProduct = (productId = 'product-1') =>
+  new Product({
+    productId,
+    productName: '콜라',
+    productPrice: 1300,
+    remainingQuantity: 25,
+    imageUrl: 'src/assets/coke.png',
+  });
 
 describe('ProductService', () => {
+  let productRepository: ReturnType<typeof createProductRepository>;
+  let productService: ProductService;
+
+  const addColaProduct = () =>
+    productService.addProduct({
+      productName: '콜라',
+      productPrice: 1300,
+      remainingQuantity: 25,
+      imageUrl: 'src/assets/coke.png',
+    });
+
   beforeEach(() => {
-    productsDB.clear();
-    cartItemsDB.clear();
+    productRepository = createProductRepository(new Map());
+    productService = new ProductService(productRepository);
   });
 
-  // 상품을 조회하는 기능
-  test('상품 조회 기능 테스트', () => {
-    // given
-    const productA = productService.addProduct({
-      productName: '콜라',
-      productPrice: 1300,
-      remainingQuantity: 25,
-      imageUrl: 'src/assets/coke.png',
-    });
+  describe('추가/조회', () => {
+    test('상품을 추가한다', () => {
+      const response = addColaProduct();
 
-    const productB = productService.addProduct({
-      productName: '사이다',
-      productPrice: 1500,
-      remainingQuantity: 10,
-      imageUrl: 'src/assets/cider.png',
-    });
-
-    // when
-    const products = productService.getProducts();
-
-    // then
-    expect(products).toHaveLength(2);
-    expect(products[0].productId).toBe(productA.productId);
-    expect(products[1].productId).toBe(productB.productId);
-  });
-
-  // 상품을 추가하는 기능
-  test('상품 추가 기능 테스트', () => {
-    // given
-    const response = productService.addProduct({
-      productName: '콜라',
-      productPrice: 1300,
-      remainingQuantity: 25,
-      imageUrl: 'src/assets/coke.png',
-    });
-
-    // when
-    const products = productService.getProducts();
-
-    // then
-    expect(products).toHaveLength(1);
-    expect(products[0].productId).toBe(response.productId);
-  });
-
-  // 상품을 삭제하는 기능
-  describe('상품 삭제 기능 테스트', () => {
-    test('상품을 삭제할 수 있다.', () => {
-      // given
-      const response = productService.addProduct({
-        productName: '콜라',
-        productPrice: 1300,
-        remainingQuantity: 25,
-        imageUrl: 'src/assets/coke.png',
-      });
-
-      productService.deleteProduct(response.productId);
-
-      // when
       const products = productService.getProducts();
 
-      // then
-      expect(products).toHaveLength(0);
+      expect(products).toHaveLength(1);
+      expect(products[0].productId).toBe(response.productId);
     });
 
-    // 상품 삭제에 따른 장바구니 정리는 라우터가 두 서비스를 조율하므로
-    // 해당 동작은 product.routes.test.ts에서 검증한다.
-    test('상품만 삭제하며 장바구니 정리는 service의 책임이 아니다.', () => {
-      // given
-      const response = productService.addProduct({
-        productName: '콜라',
-        productPrice: 1300,
-        remainingQuantity: 25,
-        imageUrl: 'src/assets/coke.png',
+    test('상품 목록을 조회한다', () => {
+      const productA = addColaProduct();
+      const productB = productService.addProduct({
+        productName: '사이다',
+        productPrice: 1500,
+        remainingQuantity: 10,
+        imageUrl: 'src/assets/cider.png',
       });
 
-      const cartItem = new CartItem({
-        cartItemId: 'cart-item-1',
-        productId: response.productId,
-        purchaseQuantity: 2,
-      });
+      const products = productService.getProducts();
 
-      cartItemRepository.save(cartItem);
+      expect(products).toHaveLength(2);
+      expect(products[0].productId).toBe(productA.productId);
+      expect(products[1].productId).toBe(productB.productId);
+    });
+  });
 
-      // when
-      productService.deleteProduct(response.productId);
+  describe('삭제', () => {
+    test('상품을 삭제할 수 있다.', () => {
+      const product = productRepository.save(createProduct());
 
-      // then
-      expect(productService.getProducts()).toHaveLength(0);
-      expect(cartItemRepository.findById(cartItem.cartItemId)).toBe(cartItem);
+      productService.deleteProduct(product.productId);
+
+      expect(productRepository.findAll()).toHaveLength(0);
     });
 
-    test('장바구니에 없는 상품을 삭제하더라도 에러를 반환하지 않는다.', () => {
-      // given
-      const response = productService.addProduct({
-        productName: '콜라',
-        productPrice: 1300,
-        remainingQuantity: 25,
-        imageUrl: 'src/assets/coke.png',
-      });
+    test('존재하는 상품 삭제는 에러를 반환하지 않는다.', () => {
+      const product = productRepository.save(createProduct());
 
-      // when, then
-      expect(() => {
-        productService.deleteProduct(response.productId);
-      }).not.toThrow();
-      expect(productService.getProducts()).toHaveLength(0);
-      expect(cartItemRepository.findAll()).toEqual([]);
+      expect(() =>
+        productService.deleteProduct(product.productId),
+      ).not.toThrow();
+      expect(productRepository.findAll()).toHaveLength(0);
     });
 
     test('존재하지 않은 상품 삭제 시 에러를 반환한다.', () => {
-      expect(() => {
-        productService.deleteProduct('1');
-      }).toThrow('존재하지 않는 상품입니다.');
+      expect(() => productService.deleteProduct('1')).toThrow(
+        '존재하지 않는 상품입니다.',
+      );
     });
   });
 });

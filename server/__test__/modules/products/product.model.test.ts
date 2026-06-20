@@ -1,4 +1,4 @@
-import { ModelError } from '../../../src/errors/ModelError.js';
+import { DomainError } from '../../../src/errors/DomainError.js';
 import { Product } from '../../../src/modules/products/product.model.js';
 
 describe('product 모델 테스트', () => {
@@ -117,7 +117,7 @@ describe('product 모델 테스트', () => {
     }).toThrow('유효하지 않은 상품 가격입니다.');
   });
 
-  test('상품 이름 도메인 검증 실패 시 INVALID_PRODUCT_NAME 코드를 가진 ModelError를 던진다', () => {
+  test('상품 이름 도메인 검증 실패 시 INVALID_PRODUCT_NAME 코드를 가진 DomainError를 던진다', () => {
     const mockProduct = {
       productId: '1',
       productName: ' ',
@@ -129,8 +129,8 @@ describe('product 모델 테스트', () => {
     try {
       new Product(mockProduct);
     } catch (error) {
-      expect(error).toBeInstanceOf(ModelError);
-      expect((error as ModelError).code).toBe('INVALID_PRODUCT_NAME');
+      expect(error).toBeInstanceOf(DomainError);
+      expect((error as DomainError).code).toBe('INVALID_PRODUCT_NAME');
     }
   });
 });
