@@ -34,9 +34,9 @@ describe('DeleteProductUseCase', () => {
     );
   });
 
-  test('상품을 삭제하면 장바구니에 담긴 동일한 상품도 함께 삭제된다.', () => {
-    const product = productRepository.save(createProduct());
-    cartItemRepository.save(
+  test('상품을 삭제하면 장바구니에 담긴 동일한 상품도 함께 삭제된다.', async () => {
+    const product = await productRepository.save(createProduct());
+    await cartItemRepository.save(
       new CartItem({
         cartItemId: 'cart-item-1',
         productId: product.productId,
@@ -44,24 +44,24 @@ describe('DeleteProductUseCase', () => {
       }),
     );
 
-    deleteProductUseCase.execute(product.productId);
+    await deleteProductUseCase.execute(product.productId);
 
-    expect(productRepository.findAll()).toHaveLength(0);
+    expect(await productRepository.findAll()).toHaveLength(0);
     expect(
-      cartItemRepository.findByProductId(product.productId),
+      await cartItemRepository.findByProductId(product.productId),
     ).toBeUndefined();
   });
 
-  test('상품 삭제 시 동일한 productId를 가진 장바구니 항목을 모두 제거한다.', () => {
-    const product = productRepository.save(createProduct());
-    cartItemRepository.save(
+  test('상품 삭제 시 동일한 productId를 가진 장바구니 항목을 모두 제거한다.', async () => {
+    const product = await productRepository.save(createProduct());
+    await cartItemRepository.save(
       new CartItem({
         cartItemId: 'cart-item-1',
         productId: product.productId,
         purchaseQuantity: 2,
       }),
     );
-    cartItemRepository.save(
+    await cartItemRepository.save(
       new CartItem({
         cartItemId: 'cart-item-2',
         productId: product.productId,
@@ -69,23 +69,23 @@ describe('DeleteProductUseCase', () => {
       }),
     );
 
-    deleteProductUseCase.execute(product.productId);
+    await deleteProductUseCase.execute(product.productId);
 
-    expect(cartItemRepository.findAll()).toHaveLength(0);
+    expect(await cartItemRepository.findAll()).toHaveLength(0);
   });
 
-  test('장바구니에 없는 상품을 삭제하더라도 에러를 반환하지 않는다.', () => {
-    const product = productRepository.save(createProduct());
+  test('장바구니에 없는 상품을 삭제하더라도 에러를 반환하지 않는다.', async () => {
+    const product = await productRepository.save(createProduct());
 
-    expect(() =>
+    await expect(
       deleteProductUseCase.execute(product.productId),
-    ).not.toThrow();
-    expect(productRepository.findAll()).toHaveLength(0);
-    expect(cartItemRepository.findAll()).toEqual([]);
+    ).resolves.toBeUndefined();
+    expect(await productRepository.findAll()).toHaveLength(0);
+    expect(await cartItemRepository.findAll()).toEqual([]);
   });
 
-  test('존재하지 않은 상품 삭제 시 에러를 반환한다.', () => {
-    expect(() => deleteProductUseCase.execute('1')).toThrow(
+  test('존재하지 않은 상품 삭제 시 에러를 반환한다.', async () => {
+    await expect(deleteProductUseCase.execute('1')).rejects.toThrow(
       '존재하지 않는 상품입니다.',
     );
   });

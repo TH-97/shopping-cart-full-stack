@@ -13,20 +13,20 @@ export const createProductController = (
   productService: ProductService,
   deleteProductUseCase: DeleteProductUseCase,
 ) => ({
-  list: routeHandler((_req, res) => {
-    const products = productService.getProducts();
+  list: routeHandler(async (_req, res) => {
+    const products = await productService.getProducts();
     res.status(200).json(products.map(toProductResponse));
   }),
 
-  create: routeHandler((req, res) => {
+  create: routeHandler(async (req, res) => {
     const command = parseCreateProductDto(req.body);
-    const product = productService.addProduct(command);
+    const product = await productService.addProduct(command);
     res.status(201).json(product);
   }),
 
-  remove: routeHandler((req, res) => {
+  remove: routeHandler(async (req, res) => {
     const command = parseProductIdDto(req.params);
-    deleteProductUseCase.execute(command.productId);
+    await deleteProductUseCase.execute(command.productId);
     res.status(204).send();
   }),
 });

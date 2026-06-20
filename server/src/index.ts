@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { bootstrapApp } from './container.js';
 
 const PORT = process.env.PORT ?? 3000;

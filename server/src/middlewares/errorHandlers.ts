@@ -12,7 +12,9 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return;
   }
 
-  // 미처리 예외는 500 fallback.
+  // 예상치 못한 예외는 원인 추적을 위해 로깅한 뒤 500 fallback.
+  console.error('[unhandled error]', error);
+
   res.status(500).json({
     code: 'INTERNAL_SERVER_ERROR',
     message: '서버 오류가 발생했습니다.',

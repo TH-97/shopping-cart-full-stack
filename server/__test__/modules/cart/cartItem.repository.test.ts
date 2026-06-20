@@ -15,74 +15,75 @@ describe('CartItemRepository', () => {
     cartItemRepository = createCartItemRepository(new Map());
   });
 
-  test('장바구니에 상품을 저장한다', () => {
+  test('장바구니에 상품을 저장한다', async () => {
     const cartItem = createCartItem();
 
-    const savedCartItem = cartItemRepository.save(cartItem);
+    const savedCartItem = await cartItemRepository.save(cartItem);
 
     expect(savedCartItem).toBe(cartItem);
   });
 
-  test('장바구니에 담긴 전체 상품 목록을 조회한다', () => {
+  test('장바구니에 담긴 전체 상품 목록을 조회한다', async () => {
     const cartItemA = createCartItem('1');
     const cartItemB = createCartItem('2');
 
-    cartItemRepository.save(cartItemA);
-    cartItemRepository.save(cartItemB);
+    await cartItemRepository.save(cartItemA);
+    await cartItemRepository.save(cartItemB);
 
-    expect(cartItemRepository.findAll()).toEqual([cartItemA, cartItemB]);
+    expect(await cartItemRepository.findAll()).toEqual([cartItemA, cartItemB]);
   });
 
-  test('상품 id로 상품을 조회한다', () => {
+  test('상품 id로 상품을 조회한다', async () => {
     const cartItem = createCartItem();
 
-    cartItemRepository.save(cartItem);
+    await cartItemRepository.save(cartItem);
 
-    expect(cartItemRepository.findById('1')).toBe(cartItem);
+    expect(await cartItemRepository.findById('1')).toBe(cartItem);
   });
 
-  test('존재하지 않는 상품 id로 조회하면 undefined를 반환한다', () => {
-    expect(cartItemRepository.findById('unknown')).toBeUndefined();
+  test('존재하지 않는 상품 id로 조회하면 undefined를 반환한다', async () => {
+    expect(await cartItemRepository.findById('unknown')).toBeUndefined();
   });
 
-  test('productId로 장바구니 상품을 조회한다', () => {
+  test('productId로 장바구니 상품을 조회한다', async () => {
     const cartItem = createCartItem('1', 'p1');
-    cartItemRepository.save(cartItem);
+    await cartItemRepository.save(cartItem);
 
-    expect(cartItemRepository.findByProductId('p1')).toBe(cartItem);
+    expect(await cartItemRepository.findByProductId('p1')).toBe(cartItem);
   });
 
-  test('존재하지 않는 productId로 조회하면 undefined를 반환한다', () => {
-    expect(cartItemRepository.findByProductId('unknown')).toBeUndefined();
+  test('존재하지 않는 productId로 조회하면 undefined를 반환한다', async () => {
+    expect(await cartItemRepository.findByProductId('unknown')).toBeUndefined();
   });
 
-  test('상품을 삭제한다', () => {
+  test('상품을 삭제한다', async () => {
     const cartItem = createCartItem();
 
-    cartItemRepository.save(cartItem);
-    cartItemRepository.deleteById('1');
+    await cartItemRepository.save(cartItem);
+    await cartItemRepository.deleteById('1');
 
-    expect(cartItemRepository.findById('1')).toBeUndefined();
-    expect(cartItemRepository.findAll()).toEqual([]);
+    expect(await cartItemRepository.findById('1')).toBeUndefined();
+    expect(await cartItemRepository.findAll()).toEqual([]);
   });
 
-  test('productId로 동일 상품의 장바구니 항목을 모두 삭제한다', () => {
-    cartItemRepository.save(createCartItem('1', 'p1'));
-    cartItemRepository.save(createCartItem('2', 'p1'));
-    cartItemRepository.save(createCartItem('3', 'p2'));
+  test('productId로 동일 상품의 장바구니 항목을 모두 삭제한다', async () => {
+    await cartItemRepository.save(createCartItem('1', 'p1'));
+    await cartItemRepository.save(createCartItem('2', 'p1'));
+    await cartItemRepository.save(createCartItem('3', 'p2'));
 
-    cartItemRepository.deleteByProductId('p1');
+    await cartItemRepository.deleteByProductId('p1');
 
-    expect(cartItemRepository.findByProductId('p1')).toBeUndefined();
-    expect(cartItemRepository.findAll()).toHaveLength(1);
-    expect(cartItemRepository.findById('3')).toBeDefined();
+    expect(await cartItemRepository.findByProductId('p1')).toBeUndefined();
+    expect(await cartItemRepository.findAll()).toHaveLength(1);
+    expect(await cartItemRepository.findById('3')).toBeDefined();
   });
 
-  test('해당 productId 항목이 없어도 에러 없이 동작한다', () => {
-    cartItemRepository.save(createCartItem('1', 'p1'));
+  test('해당 productId 항목이 없어도 에러 없이 동작한다', async () => {
+    await cartItemRepository.save(createCartItem('1', 'p1'));
 
-    expect(() => cartItemRepository.deleteByProductId('unknown')).not.toThrow();
-    expect(cartItemRepository.findAll()).toHaveLength(1);
+    await expect(
+      cartItemRepository.deleteByProductId('unknown'),
+    ).resolves.toBeUndefined();
+    expect(await cartItemRepository.findAll()).toHaveLength(1);
   });
-
 });

@@ -29,25 +29,25 @@ describe('ProductService', () => {
   });
 
   describe('추가/조회', () => {
-    test('상품을 추가한다', () => {
-      const response = addColaProduct();
+    test('상품을 추가한다', async () => {
+      const response = await addColaProduct();
 
-      const products = productService.getProducts();
+      const products = await productService.getProducts();
 
       expect(products).toHaveLength(1);
       expect(products[0].productId).toBe(response.productId);
     });
 
-    test('상품 목록을 조회한다', () => {
-      const productA = addColaProduct();
-      const productB = productService.addProduct({
+    test('상품 목록을 조회한다', async () => {
+      const productA = await addColaProduct();
+      const productB = await productService.addProduct({
         productName: '사이다',
         productPrice: 1500,
         remainingQuantity: 10,
         imageUrl: 'src/assets/cider.png',
       });
 
-      const products = productService.getProducts();
+      const products = await productService.getProducts();
 
       expect(products).toHaveLength(2);
       expect(products[0].productId).toBe(productA.productId);
@@ -56,25 +56,25 @@ describe('ProductService', () => {
   });
 
   describe('삭제', () => {
-    test('상품을 삭제할 수 있다.', () => {
-      const product = productRepository.save(createProduct());
+    test('상품을 삭제할 수 있다.', async () => {
+      const product = await productRepository.save(createProduct());
 
-      productService.deleteProduct(product.productId);
+      await productService.deleteProduct(product.productId);
 
-      expect(productRepository.findAll()).toHaveLength(0);
+      expect(await productRepository.findAll()).toHaveLength(0);
     });
 
-    test('존재하는 상품 삭제는 에러를 반환하지 않는다.', () => {
-      const product = productRepository.save(createProduct());
+    test('존재하는 상품 삭제는 에러를 반환하지 않는다.', async () => {
+      const product = await productRepository.save(createProduct());
 
-      expect(() =>
+      await expect(
         productService.deleteProduct(product.productId),
-      ).not.toThrow();
-      expect(productRepository.findAll()).toHaveLength(0);
+      ).resolves.toBeUndefined();
+      expect(await productRepository.findAll()).toHaveLength(0);
     });
 
-    test('존재하지 않은 상품 삭제 시 에러를 반환한다.', () => {
-      expect(() => productService.deleteProduct('1')).toThrow(
+    test('존재하지 않은 상품 삭제 시 에러를 반환한다.', async () => {
+      await expect(productService.deleteProduct('1')).rejects.toThrow(
         '존재하지 않는 상품입니다.',
       );
     });

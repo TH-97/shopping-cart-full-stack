@@ -101,7 +101,7 @@ describe('상품 API', () => {
     });
     const { productId } = productRes.body;
 
-    cartItemRepository.save(
+    await cartItemRepository.save(
       new CartItem({
         cartItemId: 'cart-item-1',
         productId,
@@ -112,6 +112,6 @@ describe('상품 API', () => {
     const deleteRes = await request(app).delete(`/products/${productId}`);
 
     expect(deleteRes.status).toBe(204);
-    expect(cartItemRepository.findByProductId(productId)).toBeUndefined();
+    expect(await cartItemRepository.findByProductId(productId)).toBeUndefined();
   });
 });

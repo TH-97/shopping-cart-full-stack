@@ -10,8 +10,8 @@ import type { CartItemService } from './cartItem.service.js';
 // 요청을 받아 dto 파싱 → service 호출 → 응답 직렬화까지 담당한다.
 // 라우터(cartItem.routes.ts)는 경로와 이 핸들러의 연결만 맡는다.
 export const createCartItemController = (cartItemService: CartItemService) => ({
-  list: routeHandler((_req, res) => {
-    const cartItems = cartItemService.getCartItems();
+  list: routeHandler(async (_req, res) => {
+    const cartItems = await cartItemService.getCartItems();
     res
       .status(200)
       .json(
@@ -21,10 +21,10 @@ export const createCartItemController = (cartItemService: CartItemService) => ({
       );
   }),
 
-  add: routeHandler((req, res) => {
+  add: routeHandler(async (req, res) => {
     const command = parseAddCartItemDto(req.body);
 
-    const cartItem = cartItemService.addCartItem(command);
+    const cartItem = await cartItemService.addCartItem(command);
 
     const responseBody = { cartItemId: cartItem.cartItemId };
 
@@ -36,16 +36,16 @@ export const createCartItemController = (cartItemService: CartItemService) => ({
     res.status(200).json(responseBody);
   }),
 
-  remove: routeHandler((req, res) => {
+  remove: routeHandler(async (req, res) => {
     const command = parseCartItemIdDto(req.params);
-    cartItemService.deleteCartItem(command.cartItemId);
+    await cartItemService.deleteCartItem(command.cartItemId);
     res.status(204).send();
   }),
 
-  changeQuantity: routeHandler((req, res) => {
+  changeQuantity: routeHandler(async (req, res) => {
     const command = parseChangeCartItemQuantityDto(req.params, req.body);
 
-    cartItemService.changeQuantity(command);
+    await cartItemService.changeQuantity(command);
     res.status(204).send();
   }),
 });

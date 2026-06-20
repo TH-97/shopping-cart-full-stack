@@ -17,15 +17,15 @@ describe('ProductRepository', () => {
     productRepository = createProductRepository(new Map());
   });
 
-  test('상품을 저장한다', () => {
+  test('상품을 저장한다', async () => {
     const product = createProduct();
 
-    const savedProduct = productRepository.save(product);
+    const savedProduct = await productRepository.save(product);
 
     expect(savedProduct).toBe(product);
   });
 
-  test('저장된 전체 상품 목록을 조회한다', () => {
+  test('저장된 전체 상품 목록을 조회한다', async () => {
     const productA = createProduct('1');
     const productB = new Product({
       productId: '2',
@@ -35,31 +35,31 @@ describe('ProductRepository', () => {
       imageUrl: 'src/assets/cider.png',
     });
 
-    productRepository.save(productA);
-    productRepository.save(productB);
+    await productRepository.save(productA);
+    await productRepository.save(productB);
 
-    expect(productRepository.findAll()).toEqual([productA, productB]);
+    expect(await productRepository.findAll()).toEqual([productA, productB]);
   });
 
-  test('상품 id로 상품을 조회한다', () => {
+  test('상품 id로 상품을 조회한다', async () => {
     const product = createProduct();
 
-    productRepository.save(product);
+    await productRepository.save(product);
 
-    expect(productRepository.findById('1')).toBe(product);
+    expect(await productRepository.findById('1')).toBe(product);
   });
 
-  test('존재하지 않는 상품 id로 조회하면 undefined를 반환한다', () => {
-    expect(productRepository.findById('unknown')).toBeUndefined();
+  test('존재하지 않는 상품 id로 조회하면 undefined를 반환한다', async () => {
+    expect(await productRepository.findById('unknown')).toBeUndefined();
   });
 
-  test('상품을 삭제한다', () => {
+  test('상품을 삭제한다', async () => {
     const product = createProduct();
 
-    productRepository.save(product);
-    productRepository.deleteById('1');
+    await productRepository.save(product);
+    await productRepository.deleteById('1');
 
-    expect(productRepository.findById('1')).toBeUndefined();
-    expect(productRepository.findAll()).toEqual([]);
+    expect(await productRepository.findById('1')).toBeUndefined();
+    expect(await productRepository.findAll()).toEqual([]);
   });
 });

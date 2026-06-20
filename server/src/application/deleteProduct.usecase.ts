@@ -10,8 +10,8 @@ export class DeleteProductUseCase {
     private readonly cartItemService: CartItemService,
   ) {}
 
-  execute(productId: string): void {
-    this.productService.deleteProduct(productId);
-    this.cartItemService.removeItemsByProductId(productId);
+  async execute(productId: string): Promise<void> {
+    await this.productService.deleteProduct(productId);
+    await this.cartItemService.removeItemsByProductId(productId);
   }
 }

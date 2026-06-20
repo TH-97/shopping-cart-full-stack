@@ -16,19 +16,19 @@ export class ProductService {
     return this.productRepository.findAll();
   }
 
-  addProduct(command: AddProductCommand) {
+  async addProduct(command: AddProductCommand) {
     const product = new Product({ productId: crypto.randomUUID(), ...command });
 
-    this.productRepository.save(product);
+    await this.productRepository.save(product);
 
     return { productId: product.productId };
   }
 
-  deleteProduct(productId: string): void {
-    const product = this.productRepository.findById(productId);
+  async deleteProduct(productId: string): Promise<void> {
+    const product = await this.productRepository.findById(productId);
 
     if (!product) throw productNotFoundError();
 
-    this.productRepository.deleteById(productId);
+    await this.productRepository.deleteById(productId);
   }
 }
