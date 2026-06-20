@@ -64,6 +64,11 @@ insert into "user" (user_id)
 values ('demo-user')
 on conflict (user_id) do nothing;
 
+-- 전역 단일 장바구니용 데모 cart (cart_item.cart_id NOT NULL 충족).
+insert into cart (cart_id, user_id)
+values ('demo-cart', 'demo-user')
+on conflict (cart_id) do nothing;
+
 insert into coupon (
   coupon_id, name, discount_type, discount_value, expires_at,
   min_order_amount, usable_from, usable_to, buy_quantity, free_quantity
