@@ -8,31 +8,6 @@ export interface ProductRepository {
   deleteById(productId: string): Promise<boolean>;
 }
 
-// 테스트·로컬용 인메모리 구현. 인터페이스는 비동기이므로 Promise를 반환한다.
-export const createInMemoryProductRepository = (
-  store: Map<string, Product>,
-): ProductRepository => ({
-  async save(product) {
-    store.set(product.productId, product);
-    return product;
-  },
-
-  async findAll() {
-    return Array.from(store.values());
-  },
-
-  async findById(productId) {
-    return store.get(productId);
-  },
-
-  async deleteById(productId) {
-    return store.delete(productId);
-  },
-});
-
-// 인메모리가 기본 팩토리(테스트·로컬). 프로덕션은 container가 Supabase 구현을 고른다.
-export const createProductRepository = createInMemoryProductRepository;
-
 const TABLE = 'product';
 
 const toProduct = (row: {

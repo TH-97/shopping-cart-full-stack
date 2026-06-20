@@ -1,8 +1,9 @@
-import type { CartItem } from './modules/cart/cartItem.model.js';
-import type { Coupon } from './modules/coupon/coupon.model.js';
-import type { UserCouponRow } from './modules/coupon/coupon.repository.js';
-import type { Product } from './modules/products/product.model.js';
+import type { CartItem } from '../../src/modules/cart/cartItem.model.js';
+import type { Coupon } from '../../src/modules/coupon/coupon.model.js';
+import type { Product } from '../../src/modules/products/product.model.js';
+import type { UserCouponRow } from './inMemoryRepositories.js';
 
+// 인메모리 더블이 쓰는 Map 묶음. 테스트 전용(프로덕션은 Supabase).
 export type Stores = {
   productsDB: Map<string, Product>;
   cartItemsDB: Map<string, CartItem>;

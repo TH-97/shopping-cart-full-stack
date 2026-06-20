@@ -1,18 +1,20 @@
 import express from 'express';
 import request from 'supertest';
 import { errorHandler } from '../../../src/middlewares/errorHandlers.js';
-import { createCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
 import { CartItemService } from '../../../src/modules/cart/cartItem.service.js';
-import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 import { createProductRouter } from '../../../src/modules/products/product.routes.js';
+import {
+  createInMemoryCartItemRepository,
+  createInMemoryProductRepository,
+} from '../../support/inMemoryRepositories.js';
 import { ProductService } from '../../../src/modules/products/product.service.js';
 import { DeleteProductUseCase } from '../../../src/application/deleteProduct.usecase.js';
 
 let app: express.Express;
 
 beforeEach(() => {
-  const productRepository = createProductRepository(new Map());
-  const cartItemRepository = createCartItemRepository(new Map());
+  const productRepository = createInMemoryProductRepository(new Map());
+  const cartItemRepository = createInMemoryCartItemRepository(new Map());
   const productService = new ProductService(productRepository);
   const cartItemService = new CartItemService(
     cartItemRepository,

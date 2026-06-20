@@ -1,52 +1,26 @@
 import { createApp } from './app.js';
-import { createStores, type Stores } from './db.js';
-import { createSupabaseClient, hasSupabaseCredentials } from './supabase.js';
-import {
-  createInMemoryCartItemRepository,
-  createSupabaseCartItemRepository,
-} from './modules/cart/cartItem.repository.js';
+import { createSupabaseClient } from './supabase.js';
+import { createSupabaseCartItemRepository } from './modules/cart/cartItem.repository.js';
 import { CartItemService } from './modules/cart/cartItem.service.js';
-import {
-  createInMemoryProductRepository,
-  createSupabaseProductRepository,
-} from './modules/products/product.repository.js';
+import { createSupabaseProductRepository } from './modules/products/product.repository.js';
 import { ProductService } from './modules/products/product.service.js';
 import { DeleteProductUseCase } from './application/deleteProduct.usecase.js';
-import {
-  createInMemoryCouponRepository,
-  createSupabaseCouponRepository,
-} from './modules/coupon/coupon.repository.js';
+import { createSupabaseCouponRepository } from './modules/coupon/coupon.repository.js';
 import { CouponService } from './modules/coupon/coupon.service.js';
 import { OrderSummaryUseCase } from './application/orderSummary.usecase.js';
 import { GetOrderCouponsUseCase } from './application/getOrderCoupons.usecase.js';
-import { seedDemoCoupons } from './modules/coupon/coupon.seed.js';
 
 // 인증이 없으므로 모든 쿠폰 조회는 데모 유저 기준으로 한다.
 export const DEMO_USER_ID = process.env.DEMO_USER_ID ?? 'demo-user';
 
+// 프로덕션은 Supabase 전용이다. 자격증명이 없으면 createSupabaseClient가 throw해
+// "Supabase 필수, 실패는 명확히" 동작을 보장한다. 인메모리 더블은 테스트 전용.
 export const createRepositories = () => {
-  // 자격증명이 있으면 Supabase, 없으면(테스트·로컬) 인메모리로 폴백한다.
-  if (hasSupabaseCredentials()) {
-    const client = createSupabaseClient();
-    return {
-      productRepository: createSupabaseProductRepository(client),
-      cartItemRepository: createSupabaseCartItemRepository(client),
-      couponRepository: createSupabaseCouponRepository(client, DEMO_USER_ID),
-    };
-  }
-
-  const stores = createStores();
-  // 인메모리 경로에서는 데모 쿠폰을 시드해 GET /coupons가 데이터를 반환하게 한다.
-  seedDemoCoupons(stores, DEMO_USER_ID);
-
+  const client = createSupabaseClient();
   return {
-    productRepository: createInMemoryProductRepository(stores.productsDB),
-    cartItemRepository: createInMemoryCartItemRepository(stores.cartItemsDB),
-    couponRepository: createInMemoryCouponRepository(
-      stores.couponsDB,
-      stores.userCouponsDB,
-      DEMO_USER_ID,
-    ),
+    productRepository: createSupabaseProductRepository(client),
+    cartItemRepository: createSupabaseCartItemRepository(client),
+    couponRepository: createSupabaseCouponRepository(client, DEMO_USER_ID),
   };
 };
 
@@ -87,5 +61,3 @@ export const bootstrapApp = () => {
     userId: DEMO_USER_ID,
   });
 };
-
-export type { Stores };

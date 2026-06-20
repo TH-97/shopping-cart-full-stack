@@ -1,4 +1,3 @@
-import { cartItemNotFoundError } from '../errors/domainErrors.js';
 import type { CartItemRepository } from '../modules/cart/cartItem.repository.js';
 import type { CouponContext } from '../modules/coupon/coupon.model.js';
 import type { CouponRepository } from '../modules/coupon/coupon.repository.js';
@@ -7,8 +6,8 @@ import { toDiscountTypeLabel } from '../modules/coupon/coupon.dto.js';
 import {
   calculateOrderAmount,
   calculateShippingFee,
-  type SelectedItem,
 } from '../modules/order/order.calculation.js';
+import { resolveSelectedItems } from '../modules/order/resolveSelectedItems.js';
 import type { ProductRepository } from '../modules/products/product.repository.js';
 
 type GetOrderCouponsInput = {
@@ -34,7 +33,9 @@ export class GetOrderCouponsUseCase {
   async execute(input: GetOrderCouponsInput): Promise<OrderCouponsResult> {
     const now = input.now ?? new Date();
 
-    const selectedItems = await this.resolveSelectedItems(
+    const selectedItems = await resolveSelectedItems(
+      this.cartItemRepository,
+      this.productRepository,
       input.selectedCartItemIds,
     );
     const orderAmount = calculateOrderAmount(selectedItems);
@@ -61,26 +62,5 @@ export class GetOrderCouponsUseCase {
     });
 
     return { orderAmount, coupons };
-  }
-
-  private async resolveSelectedItems(
-    selectedCartItemIds: string[],
-  ): Promise<SelectedItem[]> {
-    return Promise.all(
-      selectedCartItemIds.map(async (cartItemId) => {
-        const cartItem = await this.cartItemRepository.findById(cartItemId);
-        if (!cartItem) throw cartItemNotFoundError();
-
-        const product = await this.productRepository.findById(
-          cartItem.productId,
-        );
-        if (!product) throw cartItemNotFoundError();
-
-        return {
-          unitPrice: product.productPrice,
-          quantity: cartItem.purchaseQuantity,
-        };
-      }),
-    );
   }
 }

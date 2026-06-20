@@ -25,9 +25,11 @@ export class CouponService {
     couponIds: string[],
     now: Date = new Date(),
   ): Promise<void> {
-    this.assertWithinLimit(couponIds);
+    // 중복 ID는 제거 후 검증한다(limit도 unique 개수 기준).
+    const uniqueCouponIds = [...new Set(couponIds)];
+    this.assertWithinLimit(uniqueCouponIds);
 
-    for (const couponId of couponIds) {
+    for (const couponId of uniqueCouponIds) {
       const owned = await this.couponRepository.findById(couponId);
       if (!owned) throw couponNotFoundError();
       if (owned.coupon.expiresAt.getTime() < now.getTime()) {

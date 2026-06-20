@@ -1,5 +1,4 @@
 import {
-  cartItemNotFoundError,
   couponNotApplicableError,
   couponNotFoundError,
   exceedsCouponLimitError,
@@ -13,8 +12,8 @@ import {
   calculateShippingFee,
   calculateTotalPayment,
   sumCouponDiscount,
-  type SelectedItem,
 } from '../modules/order/order.calculation.js';
+import { resolveSelectedItems } from '../modules/order/resolveSelectedItems.js';
 import type { OrderSummary } from '../modules/order/order.dto.js';
 import type { ProductRepository } from '../modules/products/product.repository.js';
 
@@ -37,7 +36,9 @@ export class OrderSummaryUseCase {
   async execute(input: OrderSummaryInput): Promise<OrderSummary> {
     const now = input.now ?? new Date();
 
-    const selectedItems = await this.resolveSelectedItems(
+    const selectedItems = await resolveSelectedItems(
+      this.cartItemRepository,
+      this.productRepository,
       input.selectedCartItemIds,
     );
     const orderAmount = calculateOrderAmount(selectedItems);
@@ -67,40 +68,20 @@ export class OrderSummaryUseCase {
     };
   }
 
-  // 각 cartItemId를 조회(없으면 CART_ITEM_NOT_FOUND)하고 상품 단가와 조인한다.
-  private async resolveSelectedItems(
-    selectedCartItemIds: string[],
-  ): Promise<SelectedItem[]> {
-    return Promise.all(
-      selectedCartItemIds.map(async (cartItemId) => {
-        const cartItem = await this.cartItemRepository.findById(cartItemId);
-        if (!cartItem) throw cartItemNotFoundError();
-
-        const product = await this.productRepository.findById(
-          cartItem.productId,
-        );
-        if (!product) throw cartItemNotFoundError();
-
-        return {
-          unitPrice: product.productPrice,
-          quantity: cartItem.purchaseQuantity,
-        };
-      }),
-    );
-  }
-
   // 선택 쿠폰을 조회·검증하고 적용 가능한 경우의 할인 합을 계산한다.
   private async resolveCouponDiscount(
     selectedCouponIds: string[],
     ctx: CouponContext,
   ): Promise<number> {
-    if (selectedCouponIds.length === 0) return 0;
-    if (selectedCouponIds.length > MAX_COUPON_COUNT) {
+    // 중복 ID는 같은 쿠폰이 두 번 합산되지 않도록 제거한다(limit도 unique 개수 기준).
+    const uniqueCouponIds = [...new Set(selectedCouponIds)];
+    if (uniqueCouponIds.length === 0) return 0;
+    if (uniqueCouponIds.length > MAX_COUPON_COUNT) {
       throw exceedsCouponLimitError();
     }
 
     const discounts = await Promise.all(
-      selectedCouponIds.map(async (couponId) => {
+      uniqueCouponIds.map(async (couponId) => {
         const owned = await this.couponRepository.findById(couponId);
         if (!owned) throw couponNotFoundError();
 

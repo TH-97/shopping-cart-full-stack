@@ -1,7 +1,7 @@
 import request from 'supertest';
-import { bootstrapApp } from '../src/container.js';
+import { createTestApp } from './support/createTestApp.js';
 
-const app = bootstrapApp();
+const app = createTestApp();
 
 describe('app', () => {
   it('GET /health 는 200과 상태를 반환한다', async () => {

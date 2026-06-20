@@ -1,10 +1,10 @@
-import type { Stores } from '../../db.js';
-import { Coupon } from './coupon.model.js';
+import { Coupon } from '../../src/modules/coupon/coupon.model.js';
+import type { Stores } from './stores.js';
 
 // 데모 유저가 보유한 쿠폰 4종(정액/정률/무료배송/증정)을 인메모리에 시드한다.
-// dev·테스트에서 GET /coupons가 의미 있는 데이터를 반환하도록 한다.
+// 테스트용 앱에서 GET /coupons가 의미 있는 데이터를 반환하도록 한다.
 export const seedDemoCoupons = (stores: Stores, userId: string): void => {
-  // 만료일은 시드 시점 기준 1년 후로 둬 dev에서 만료되지 않게 한다.
+  // 만료일은 시드 시점 기준 1년 후로 둬 테스트에서 만료되지 않게 한다.
   const expiresAt = new Date();
   expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 

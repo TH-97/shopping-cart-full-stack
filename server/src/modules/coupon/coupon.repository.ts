@@ -15,58 +15,6 @@ export interface CouponRepository {
   findOwnedByUser(userId: string): Promise<OwnedCoupon[]>;
 }
 
-// 인메모리 더블이 참조하는 두 저장소.
-// couponsDB: 쿠폰 정의, userCouponsDB: 유저-쿠폰 보유 관계.
-export type UserCouponRow = {
-  userCouponId: string;
-  couponId: string;
-  userId: string;
-  isUsed: boolean;
-};
-
-// 테스트·로컬용 인메모리 구현. coupon ⨝ user_coupon을 메모리에서 조인한다.
-// findById/findByIds는 Supabase 구현과 동일하게 데모 유저 보유분으로 한정한다.
-export const createInMemoryCouponRepository = (
-  couponsDB: Map<string, Coupon>,
-  userCouponsDB: Map<string, UserCouponRow>,
-  userId: string = 'demo-user',
-): CouponRepository => {
-  const join = (row: UserCouponRow): OwnedCoupon | undefined => {
-    const coupon = couponsDB.get(row.couponId);
-    if (!coupon) return undefined;
-    return { coupon, userCouponId: row.userCouponId, isUsed: row.isUsed };
-  };
-
-  const ownedRows = (ownerId: string): UserCouponRow[] =>
-    [...userCouponsDB.values()].filter((row) => row.userId === ownerId);
-
-  return {
-    async findOwnedByUser(ownerId) {
-      return ownedRows(ownerId)
-        .map(join)
-        .filter((owned): owned is OwnedCoupon => owned !== undefined);
-    },
-
-    async findById(couponId) {
-      return ownedRows(userId)
-        .filter((row) => row.couponId === couponId)
-        .map(join)
-        .find((owned): owned is OwnedCoupon => owned !== undefined);
-    },
-
-    async findByIds(couponIds) {
-      const ids = new Set(couponIds);
-      return ownedRows(userId)
-        .filter((row) => ids.has(row.couponId))
-        .map(join)
-        .filter((owned): owned is OwnedCoupon => owned !== undefined);
-    },
-  };
-};
-
-// 인메모리가 기본 팩토리(테스트·로컬). 프로덕션은 container가 Supabase 구현을 고른다.
-export const createCouponRepository = createInMemoryCouponRepository;
-
 const TABLE = 'user_coupon';
 const SELECT =
   'user_coupon_id, is_used, coupon:coupon_id (coupon_id, name, discount_type, discount_value, expires_at, min_order_amount, usable_from, usable_to, buy_quantity, free_quantity)';

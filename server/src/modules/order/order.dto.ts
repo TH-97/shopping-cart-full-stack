@@ -1,9 +1,12 @@
 import {
   invalidCartItemIdsError,
   invalidCouponIdsError,
+  invalidIsRemoteAreaError,
 } from '../../errors/domainErrors.js';
-import { requireBody } from '../../shared/requestParsing.js';
-import { requireStringArray } from '../coupon/coupon.dto.js';
+import {
+  requireBody,
+  requireStringArray,
+} from '../../shared/requestParsing.js';
 
 export type OrderSummaryCommand = {
   selectedCartItemIds: string[];
@@ -26,7 +29,7 @@ export const parseOrderSummaryDto = (body: unknown): OrderSummaryCommand => {
     ),
     isRemoteArea: requireBoolean(
       requestBody.isRemoteArea,
-      invalidCartItemIdsError,
+      invalidIsRemoteAreaError,
     ),
   };
 };

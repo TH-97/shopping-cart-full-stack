@@ -1,9 +1,9 @@
 import { Coupon } from '../../../src/modules/coupon/coupon.model.js';
+import { CouponService } from '../../../src/modules/coupon/coupon.service.js';
 import {
   createInMemoryCouponRepository,
   type UserCouponRow,
-} from '../../../src/modules/coupon/coupon.repository.js';
-import { CouponService } from '../../../src/modules/coupon/coupon.service.js';
+} from '../../support/inMemoryRepositories.js';
 
 const future = new Date('2099-12-31T23:59:59Z');
 const past = new Date('2020-01-01T00:00:00Z');
@@ -87,6 +87,14 @@ describe('CouponService.validate', () => {
     await expect(
       service.validate(['x', 'y', 'z'], now),
     ).rejects.toThrow('쿠폰은 최대 2장까지 사용할 수 있습니다.');
+  });
+
+  test('중복 ID는 제거 후 limit을 검사한다(중복 3개라도 unique 1개면 통과)', async () => {
+    addCoupon('dup', future);
+
+    await expect(
+      service.validate(['dup', 'dup', 'dup'], now),
+    ).resolves.toBeUndefined();
   });
 
   test('만료 검증이 사용완료 검증보다 먼저 수행된다', async () => {

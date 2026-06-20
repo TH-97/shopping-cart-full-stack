@@ -1,9 +1,11 @@
 import { CartItem } from '../../src/modules/cart/cartItem.model.js';
-import { createCartItemRepository } from '../../src/modules/cart/cartItem.repository.js';
 import { CartItemService } from '../../src/modules/cart/cartItem.service.js';
 import { Product } from '../../src/modules/products/product.model.js';
-import { createProductRepository } from '../../src/modules/products/product.repository.js';
 import { ProductService } from '../../src/modules/products/product.service.js';
+import {
+  createInMemoryCartItemRepository,
+  createInMemoryProductRepository,
+} from '../support/inMemoryRepositories.js';
 import { DeleteProductUseCase } from '../../src/application/deleteProduct.usecase.js';
 
 const createProduct = (productId = 'product-1') =>
@@ -16,13 +18,13 @@ const createProduct = (productId = 'product-1') =>
   });
 
 describe('DeleteProductUseCase', () => {
-  let productRepository: ReturnType<typeof createProductRepository>;
-  let cartItemRepository: ReturnType<typeof createCartItemRepository>;
+  let productRepository: ReturnType<typeof createInMemoryProductRepository>;
+  let cartItemRepository: ReturnType<typeof createInMemoryCartItemRepository>;
   let deleteProductUseCase: DeleteProductUseCase;
 
   beforeEach(() => {
-    productRepository = createProductRepository(new Map());
-    cartItemRepository = createCartItemRepository(new Map());
+    productRepository = createInMemoryProductRepository(new Map());
+    cartItemRepository = createInMemoryCartItemRepository(new Map());
     const productService = new ProductService(productRepository);
     const cartItemService = new CartItemService(
       cartItemRepository,

@@ -88,24 +88,31 @@ export class Coupon {
     return orderAmount >= this.minOrderAmount;
   }
 
-  // usableFrom/usableTo가 모두 지정된 경우에만 now의 시:분이 구간 안인지 검사한다.
+  // usableFrom/usableTo가 모두 지정된 경우에만 now의 시:분(KST)이 구간 안인지 검사한다.
+  // 자정 횡단 구간(from > to)도 지원하며 경계를 포함한다.
   private withinUsableTime(now: Date): boolean {
     if (this.usableFrom == null || this.usableTo == null) return true;
 
-    const current = now.getHours() * 60 + now.getMinutes();
+    // usableFrom/usableTo는 'HH:MM'(KST 의미)이므로 now도 KST 시:분으로 변환해 비교한다.
+    const current = toKstMinutes(now);
     const from = toMinutes(this.usableFrom);
     const to = toMinutes(this.usableTo);
 
-    return current >= from && current <= to;
+    if (from <= to) return current >= from && current <= to;
+    // 자정 횡단: [from, 24:00) ∪ [00:00, to]
+    return current >= from || current <= to;
   }
 
   private meetsTypeCondition(ctx: CouponContext): boolean {
     if (this.discountType === 'BUY_X_GET_1') {
+      // buyQuantity가 지정되지 않은 BUY_X_GET_1 쿠폰은 적용 조건이 불완전하므로 적용 불가.
+      if (this.buyQuantity == null) return false;
+
       const totalQuantity = ctx.selectedItems.reduce(
         (sum, item) => sum + item.quantity,
         0,
       );
-      return totalQuantity >= (this.buyQuantity ?? 0);
+      return totalQuantity >= this.buyQuantity;
     }
 
     if (this.discountType === 'FREE_SHIPPING') {
@@ -127,4 +134,23 @@ export class Coupon {
 const toMinutes = (time: string): number => {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
+};
+
+// 절대시각(Date)을 KST(Asia/Seoul) 기준 시:분(자정 기준 분)으로 변환한다.
+// 서버 로컬 TZ에 의존하지 않도록 Intl로 KST의 시·분을 추출한다.
+const KST_TIME_FORMAT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Seoul',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+const toKstMinutes = (date: Date): number => {
+  const parts = KST_TIME_FORMAT.formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+  const minute = Number(
+    parts.find((part) => part.type === 'minute')?.value ?? '0',
+  );
+  // hour12:false에서 자정이 '24'로 나오는 환경을 0으로 정규화한다.
+  return (hour % 24) * 60 + minute;
 };

@@ -2,7 +2,7 @@ import { Coupon } from '../../../src/modules/coupon/coupon.model.js';
 import {
   createInMemoryCouponRepository,
   type UserCouponRow,
-} from '../../../src/modules/coupon/coupon.repository.js';
+} from '../../support/inMemoryRepositories.js';
 
 const future = new Date('2099-12-31T23:59:59Z');
 

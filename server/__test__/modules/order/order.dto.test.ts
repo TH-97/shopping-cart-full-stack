@@ -38,14 +38,14 @@ describe('parseOrderSummaryDto', () => {
     ).toThrow('유효하지 않은 쿠폰 id 목록입니다.');
   });
 
-  test('isRemoteArea가 boolean이 아니면 INVALID_CART_ITEM_IDS', () => {
+  test('isRemoteArea가 boolean이 아니면 INVALID_IS_REMOTE_AREA', () => {
     expect(() =>
       parseOrderSummaryDto({
         selectedCartItemIds: ['10'],
         selectedCouponIds: [],
         isRemoteArea: 'false',
       }),
-    ).toThrow('유효하지 않은 장바구니 상품 id 목록입니다.');
+    ).toThrow('유효하지 않은 도서산간 여부입니다.');
   });
 });
 

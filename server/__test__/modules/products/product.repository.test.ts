@@ -1,5 +1,5 @@
 import { Product } from '../../../src/modules/products/product.model.js';
-import { createProductRepository } from '../../../src/modules/products/product.repository.js';
+import { createInMemoryProductRepository } from '../../support/inMemoryRepositories.js';
 
 const createProduct = (productId = '1') =>
   new Product({
@@ -11,10 +11,10 @@ const createProduct = (productId = '1') =>
   });
 
 describe('ProductRepository', () => {
-  let productRepository: ReturnType<typeof createProductRepository>;
+  let productRepository: ReturnType<typeof createInMemoryProductRepository>;
 
   beforeEach(() => {
-    productRepository = createProductRepository(new Map());
+    productRepository = createInMemoryProductRepository(new Map());
   });
 
   test('상품을 저장한다', async () => {

@@ -1,13 +1,13 @@
 import { CartItem } from '../../src/modules/cart/cartItem.model.js';
-import { createInMemoryCartItemRepository } from '../../src/modules/cart/cartItem.repository.js';
 import { Coupon } from '../../src/modules/coupon/coupon.model.js';
-import {
-  createInMemoryCouponRepository,
-  type UserCouponRow,
-} from '../../src/modules/coupon/coupon.repository.js';
 import { Product } from '../../src/modules/products/product.model.js';
-import { createInMemoryProductRepository } from '../../src/modules/products/product.repository.js';
 import { OrderSummaryUseCase } from '../../src/application/orderSummary.usecase.js';
+import {
+  createInMemoryCartItemRepository,
+  createInMemoryCouponRepository,
+  createInMemoryProductRepository,
+  type UserCouponRow,
+} from '../support/inMemoryRepositories.js';
 
 const future = new Date('2099-12-31T23:59:59Z');
 const now = new Date('2026-06-20T10:00:00Z');
@@ -190,6 +190,62 @@ describe('OrderSummaryUseCase', () => {
         now,
       }),
     ).rejects.toThrow('쿠폰은 최대 2장까지 사용할 수 있습니다.');
+  });
+
+  test('중복 쿠폰 ID는 한 번만 합산한다', async () => {
+    addProduct('p1', 10000);
+    addCartItem('ci1', 'p1', 5); // 주문금액 50000
+    addCoupon(
+      new Coupon({
+        couponId: 'fixed',
+        name: '정액',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: future,
+      }),
+    );
+
+    const summary = await useCase.execute({
+      selectedCartItemIds: ['ci1'],
+      selectedCouponIds: ['fixed', 'fixed'],
+      isRemoteArea: false,
+      now,
+    });
+
+    // 중복 제거되어 5000만 적용
+    expect(summary.couponDiscountAmount).toBe(5000);
+  });
+
+  test('중복 포함 3개라도 unique 2개면 limit을 넘지 않는다', async () => {
+    addProduct('p1', 10000);
+    addCartItem('ci1', 'p1', 5);
+    addCoupon(
+      new Coupon({
+        couponId: 'a',
+        name: '정액',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: future,
+      }),
+    );
+    addCoupon(
+      new Coupon({
+        couponId: 'b',
+        name: '정액',
+        discountType: 'FIXED',
+        discountValue: 3000,
+        expiresAt: future,
+      }),
+    );
+
+    const summary = await useCase.execute({
+      selectedCartItemIds: ['ci1'],
+      selectedCouponIds: ['a', 'b', 'a'],
+      isRemoteArea: false,
+      now,
+    });
+
+    expect(summary.couponDiscountAmount).toBe(8000);
   });
 
   test('BUY_X_GET_1은 선택 항목 중 최고가 단가만큼 할인한다', async () => {

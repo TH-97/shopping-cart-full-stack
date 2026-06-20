@@ -1,6 +1,6 @@
 import { Product } from '../../../src/modules/products/product.model.js';
-import { createProductRepository } from '../../../src/modules/products/product.repository.js';
 import { ProductService } from '../../../src/modules/products/product.service.js';
+import { createInMemoryProductRepository } from '../../support/inMemoryRepositories.js';
 
 const createProduct = (productId = 'product-1') =>
   new Product({
@@ -12,7 +12,7 @@ const createProduct = (productId = 'product-1') =>
   });
 
 describe('ProductService', () => {
-  let productRepository: ReturnType<typeof createProductRepository>;
+  let productRepository: ReturnType<typeof createInMemoryProductRepository>;
   let productService: ProductService;
 
   const addColaProduct = () =>
@@ -24,7 +24,7 @@ describe('ProductService', () => {
     });
 
   beforeEach(() => {
-    productRepository = createProductRepository(new Map());
+    productRepository = createInMemoryProductRepository(new Map());
     productService = new ProductService(productRepository);
   });
 

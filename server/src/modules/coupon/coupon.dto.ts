@@ -2,7 +2,10 @@ import {
   invalidCartItemIdsError,
   invalidCouponIdsError,
 } from '../../errors/domainErrors.js';
-import { requireBody } from '../../shared/requestParsing.js';
+import {
+  requireBody,
+  requireStringArray,
+} from '../../shared/requestParsing.js';
 import type { DiscountType } from './coupon.model.js';
 
 // discount_type(영문 enum) → 응답용 한글 라벨.
@@ -35,18 +38,6 @@ export const parseSelectedCartItemIdsQuery = (
 export const parseSelectedCouponIdsDto = (body: unknown): string[] => {
   const requestBody = requireBody(body, invalidCouponIdsError);
   return requireStringArray(requestBody.selectedCouponIds, invalidCouponIdsError);
-};
-
-// 문자열 배열 + 각 원소가 비어있지 않은 문자열인지 검증한다(타입 검증).
-export const requireStringArray = (
-  value: unknown,
-  createError: () => Error,
-): string[] => {
-  if (!Array.isArray(value)) throw createError();
-  return value.map((item) => {
-    if (typeof item !== 'string' || item.trim() === '') throw createError();
-    return item;
-  });
 };
 
 export type CouponSummaryItem = {

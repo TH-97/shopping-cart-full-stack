@@ -1,13 +1,13 @@
 import { CartItem } from '../../src/modules/cart/cartItem.model.js';
-import { createInMemoryCartItemRepository } from '../../src/modules/cart/cartItem.repository.js';
 import { Coupon } from '../../src/modules/coupon/coupon.model.js';
-import {
-  createInMemoryCouponRepository,
-  type UserCouponRow,
-} from '../../src/modules/coupon/coupon.repository.js';
 import { Product } from '../../src/modules/products/product.model.js';
-import { createInMemoryProductRepository } from '../../src/modules/products/product.repository.js';
 import { GetOrderCouponsUseCase } from '../../src/application/getOrderCoupons.usecase.js';
+import {
+  createInMemoryCartItemRepository,
+  createInMemoryCouponRepository,
+  createInMemoryProductRepository,
+  type UserCouponRow,
+} from '../support/inMemoryRepositories.js';
 
 const future = new Date('2099-12-31T23:59:59Z');
 const past = new Date('2020-01-01T00:00:00Z');

@@ -1,5 +1,5 @@
 import { CartItem } from '../../../src/modules/cart/cartItem.model.js';
-import { createCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
+import { createInMemoryCartItemRepository } from '../../support/inMemoryRepositories.js';
 
 const createCartItem = (cartItemId = '1', productId = '1') =>
   new CartItem({
@@ -9,10 +9,10 @@ const createCartItem = (cartItemId = '1', productId = '1') =>
   });
 
 describe('CartItemRepository', () => {
-  let cartItemRepository: ReturnType<typeof createCartItemRepository>;
+  let cartItemRepository: ReturnType<typeof createInMemoryCartItemRepository>;
 
   beforeEach(() => {
-    cartItemRepository = createCartItemRepository(new Map());
+    cartItemRepository = createInMemoryCartItemRepository(new Map());
   });
 
   test('장바구니에 상품을 저장한다', async () => {

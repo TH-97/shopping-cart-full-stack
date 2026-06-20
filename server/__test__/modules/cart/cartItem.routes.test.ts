@@ -1,10 +1,12 @@
 import express from 'express';
 import request from 'supertest';
-import { createCartItemRepository } from '../../../src/modules/cart/cartItem.repository.js';
 import { createCartItemRouter } from '../../../src/modules/cart/cartItem.routes.js';
 import { CartItemService } from '../../../src/modules/cart/cartItem.service.js';
 import { Product } from '../../../src/modules/products/product.model.js';
-import { createProductRepository } from '../../../src/modules/products/product.repository.js';
+import {
+  createInMemoryCartItemRepository,
+  createInMemoryProductRepository,
+} from '../../support/inMemoryRepositories.js';
 
 const mockCartItem = {
   productId: '1',
@@ -22,8 +24,8 @@ const mockProduct = new Product({
 let app: express.Express;
 
 beforeEach(() => {
-  const productRepository = createProductRepository(new Map());
-  const cartItemRepository = createCartItemRepository(new Map());
+  const productRepository = createInMemoryProductRepository(new Map());
+  const cartItemRepository = createInMemoryCartItemRepository(new Map());
   productRepository.save(mockProduct);
 
   const cartItemService = new CartItemService(

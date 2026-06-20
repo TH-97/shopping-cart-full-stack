@@ -10,43 +10,6 @@ export interface CartItemRepository {
   deleteByProductId(productId: string): Promise<void>;
 }
 
-// 테스트·로컬용 인메모리 구현. 인터페이스는 비동기이므로 Promise를 반환한다.
-export const createInMemoryCartItemRepository = (
-  store: Map<string, CartItem>,
-): CartItemRepository => ({
-  async save(cartItem) {
-    store.set(cartItem.cartItemId, cartItem);
-    return cartItem;
-  },
-
-  async findAll() {
-    return Array.from(store.values());
-  },
-
-  async findById(cartItemId) {
-    return store.get(cartItemId);
-  },
-
-  async findByProductId(productId) {
-    return [...store.values()].find(
-      (cartItem) => cartItem.productId === productId,
-    );
-  },
-
-  async deleteById(cartItemId) {
-    return store.delete(cartItemId);
-  },
-
-  async deleteByProductId(productId) {
-    [...store.values()]
-      .filter((cartItem) => cartItem.productId === productId)
-      .forEach((cartItem) => store.delete(cartItem.cartItemId));
-  },
-});
-
-// 인메모리가 기본 팩토리(테스트·로컬). 프로덕션은 container가 Supabase 구현을 고른다.
-export const createCartItemRepository = createInMemoryCartItemRepository;
-
 const TABLE = 'cart_item';
 
 const toCartItem = (row: {
