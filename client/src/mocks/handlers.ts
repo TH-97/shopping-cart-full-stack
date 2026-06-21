@@ -58,4 +58,34 @@ export const handlers = [
     cart = cart.filter((item) => item.cartItemId !== cartItemId);
     return new HttpResponse(null, { status: 204 });
   }),
+
+  // 서버 주문 요약 계산을 흉내낸다(클라이언트는 표시만). 선택 항목 합으로 주문 금액을,
+  // 도서산간/무료배송 임계로 배송비를 정한다. 쿠폰 할인은 0(쿠폰은 4b).
+  http.post(`${BASE_URL}/orders/summary`, async ({ request }) => {
+    const { selectedCartItemIds, isRemoteArea } = (await request.json()) as {
+      selectedCartItemIds: string[];
+      selectedCouponIds: string[];
+      isRemoteArea: boolean;
+    };
+
+    const orderAmount = cart
+      .filter((item) => selectedCartItemIds.includes(item.cartItemId))
+      .reduce(
+        (sum, item) => sum + item.productPrice * item.purchaseQuantity,
+        0,
+      );
+
+    const couponDiscountAmount = 0;
+    const shippingFee =
+      orderAmount >= 100000 ? 0 : isRemoteArea ? 6000 : 3000;
+    const totalPaymentAmount =
+      orderAmount - couponDiscountAmount + shippingFee;
+
+    return HttpResponse.json({
+      orderAmount,
+      couponDiscountAmount,
+      shippingFee,
+      totalPaymentAmount,
+    });
+  }),
 ];

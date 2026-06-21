@@ -2,20 +2,21 @@ import { useNavigate } from 'react-router-dom';
 import {
   BackButton,
   Content,
+  CouponButton,
   Description,
+  EmptyNotice,
   Header,
   PayButton,
   Title,
-  TotalAmount,
-  TotalLabel,
   Wrapper,
 } from './styles';
-import {
-  calculateDeliveryFee,
-  calculateOrderAmount,
-} from '../../utils/cart.utils';
+import { OrderItemList } from './components/OrderItemList';
+import { OrderSummaryBox } from './components/OrderSummaryBox';
+import { RemoteAreaCheckbox } from './components/RemoteAreaCheckbox';
 import { useCartQuery } from '../../hooks/useCartQuery';
 import { useSelectedIds } from '../../hooks/useSelectedIds';
+import { useRemoteArea } from '../../hooks/useRemoteArea';
+import { useOrderSummary } from '../../hooks/useOrderSummary';
 import { IsLoding } from '../../components/IsLoding';
 import { ErrorView } from '../../components/ErrorView';
 import type { CartItemData } from '../../types/cart';
@@ -65,14 +66,52 @@ function LoadedOrderConfirm({ cartItems }: { cartItems: CartItemData[] }) {
   const selectedItems = cartItems.filter((item) =>
     selectedIds.has(item.cartItemId),
   );
+  const selectedCartItemIds = [...selectedIds];
+
+  // 빈 선택 분기는 컴포넌트 경계로 분리해 useOrderSummary가 조건부로 호출되지 않게 한다(훅 규칙).
+  if (selectedCartItemIds.length === 0) {
+    return (
+      <Wrapper>
+        <OrderHeader />
+        <Content>
+          <Title>주문 확인</Title>
+          <EmptyNotice>선택된 상품이 없습니다.</EmptyNotice>
+        </Content>
+        <PayButton disabled>결제하기</PayButton>
+      </Wrapper>
+    );
+  }
+
+  return (
+    <SelectedOrderConfirm
+      selectedItems={selectedItems}
+      selectedCartItemIds={selectedCartItemIds}
+    />
+  );
+}
+
+interface SelectedOrderConfirmProps {
+  selectedItems: CartItemData[];
+  selectedCartItemIds: string[];
+}
+
+function SelectedOrderConfirm({
+  selectedItems,
+  selectedCartItemIds,
+}: SelectedOrderConfirmProps) {
+  const { isRemoteArea, toggle } = useRemoteArea();
+
+  // 쿠폰 선택은 4b에서 연결한다(현재는 빈 배열 고정).
+  const summaryState = useOrderSummary({
+    selectedCartItemIds,
+    selectedCouponIds: [],
+    isRemoteArea,
+  });
+
   const totalCount = selectedItems.reduce(
     (sum, item) => sum + item.purchaseQuantity,
     0,
   );
-
-  const orderAmount = calculateOrderAmount(cartItems, selectedIds);
-  const deliveryCharge = calculateDeliveryFee(orderAmount);
-  const totalAmount = orderAmount + deliveryCharge;
 
   return (
     <Wrapper>
@@ -85,11 +124,23 @@ function LoadedOrderConfirm({ cartItems }: { cartItems: CartItemData[] }) {
           <br />
           최종 결제 금액을 확인해 주세요.
         </Description>
-        <TotalLabel>총 결제 금액</TotalLabel>
-        <TotalAmount>{totalAmount.toLocaleString()}원</TotalAmount>
+
+        <OrderItemList items={selectedItems} />
+
+        {/* 4b에서 쿠폰 모달과 연결한다. */}
+        <CouponButton type="button" onClick={() => {}}>
+          쿠폰 적용
+        </CouponButton>
+
+        <RemoteAreaCheckbox checked={isRemoteArea} onChange={toggle} />
+
+        <OrderSummaryBox state={summaryState} />
       </Content>
 
-      <PayButton>결제하기</PayButton>
+      {/* 4c에서 결제 액션과 연결한다. */}
+      <PayButton type="button" onClick={() => {}}>
+        결제하기
+      </PayButton>
     </Wrapper>
   );
 }
