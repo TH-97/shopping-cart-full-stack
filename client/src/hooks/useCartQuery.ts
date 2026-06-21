@@ -1,26 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from './useQuery';
 import { fetchCartItems } from '../api/cartApi';
 import type { CartItemData } from '../types/cart';
 
-type CartStatus =
+export type CartQueryState =
   | { status: 'loading' }
   | { status: 'error'; error: Error }
   | { status: 'ready'; cartItems: CartItemData[] };
 
-export function useCartQuery() {
-  const [status, setStatus] = useState<CartStatus>({ status: 'loading' });
+// 범용 useQuery 위에 얹은 cart 전용 훅.
+// data → cartItems로만 매핑해 기존 소비처의 반환 모양을 유지한다.
+export function useCartQuery(): CartQueryState {
+  const state = useQuery(fetchCartItems);
 
-  useEffect(() => {
-    const loadCartItems = async () => {
-      try {
-        const data = await fetchCartItems();
-        setStatus({ status: 'ready', cartItems: data });
-      } catch (err) {
-        setStatus({ status: 'error', error: err as Error });
-      }
-    };
-    loadCartItems();
-  }, []);
+  if (state.status === 'ready') {
+    return { status: 'ready', cartItems: state.data };
+  }
 
-  return status;
+  return state;
 }
