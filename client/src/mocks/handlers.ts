@@ -1,7 +1,5 @@
 import { http, HttpResponse } from 'msw';
-
-const BASE_URL =
-  'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
+import { API_BASE_URL as BASE_URL } from '../api/config';
 
 interface MockCartItem {
   cartItemId: string;

@@ -1,7 +1,5 @@
 import type { CartItemData } from '../types/cart';
-
-const BASE_URL =
-  'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
+import { API_BASE_URL as BASE_URL } from './config';
 
 export async function fetchCartItems(): Promise<CartItemData[]> {
   const response = await fetch(`${BASE_URL}/cart/items`);

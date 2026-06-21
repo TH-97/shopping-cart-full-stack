@@ -11,8 +11,7 @@ import { server } from '../../mocks/server';
 import { OrderConfirmPage } from '../order/OrderConfirmPage';
 import { CartPage } from './CartPage';
 
-const BASE_URL =
-  'https://shopping-cart-full-stack-production-7ca8.up.railway.app';
+import { API_BASE_URL as BASE_URL } from '../../api/config';
 
 const renderCartPage = () =>
   render(
