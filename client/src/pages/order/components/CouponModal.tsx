@@ -37,9 +37,11 @@ export function CouponModal({
         <CouponList>
           {couponsState.data.coupons.map((coupon) => {
             const checked = selectedCouponIds.includes(coupon.couponId);
+            // 이미 선택된 쿠폰은 항상 해제 가능. 선택 안 된 것만 적용불가/최대치로 비활성.
             const disabled =
-              !coupon.isApplicable ||
-              (!checked && selectedCouponIds.length >= MAX_SELECTED);
+              !checked &&
+              (!coupon.isApplicable ||
+                selectedCouponIds.length >= MAX_SELECTED);
             return (
               <CouponItem
                 key={coupon.couponId}

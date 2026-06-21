@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { pickBestCoupons } from '../utils/coupon.utils';
 import type { CouponData } from '../types/coupon';
 
@@ -18,10 +18,12 @@ export function useCouponSelection(applicableCoupons: CouponData[]) {
     setSelectedCouponIds(pickBestCoupons(applicableCoupons));
   }
 
-  const open = () => setIsModalOpen(true);
-  const close = () => setIsModalOpen(false);
+  // 핸들러는 참조 안정화(useCallback) — Modal의 keydown 리스너가 onClose 새 참조마다
+  // 재등록되어 포커스가 튀는 문제를 막는다.
+  const open = useCallback(() => setIsModalOpen(true), []);
+  const close = useCallback(() => setIsModalOpen(false), []);
 
-  const toggleCoupon = (couponId: string) => {
+  const toggleCoupon = useCallback((couponId: string) => {
     setSelectedCouponIds((prev) => {
       if (prev.includes(couponId)) {
         return prev.filter((id) => id !== couponId);
@@ -30,7 +32,7 @@ export function useCouponSelection(applicableCoupons: CouponData[]) {
       if (prev.length >= MAX_SELECTED) return prev;
       return [...prev, couponId];
     });
-  };
+  }, []);
 
   return { selectedCouponIds, isModalOpen, open, close, toggleCoupon };
 }
