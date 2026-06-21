@@ -27,7 +27,7 @@ export function CartPage() {
       </CartLayout>
     );
 
-  return <LoadedCart initialItems={state.cartItems} />;
+  return <LoadedCart initialItems={state.data} />;
 }
 
 function LoadedCart({ initialItems }: { initialItems: CartItemData[] }) {
