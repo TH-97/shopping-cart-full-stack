@@ -125,7 +125,7 @@ GET /coupons?selectedCartItemIds=10,12
     {
       "couponId": "coupon-fixed5000",
       "couponName": "5,000원 할인 쿠폰",
-      "discountType": "정액",
+      "discountType": "FIXED",
       "isApplicable": true,
       "discountAmount": 5000,
       "expiresAt": "2026-11-30T14:59:59.000Z",
@@ -136,7 +136,7 @@ GET /coupons?selectedCartItemIds=10,12
     {
       "couponId": "coupon-miraclesale",
       "couponName": "30% 할인 쿠폰",
-      "discountType": "정율",
+      "discountType": "PERCENTAGE",
       "isApplicable": false,
       "discountAmount": 0,
       "expiresAt": "2026-07-31T14:59:59.000Z",
@@ -153,7 +153,7 @@ GET /coupons?selectedCartItemIds=10,12
 | `orderAmount`    | 선택된 상품 기준 전체 주문 금액                 |
 | `couponId`       | 쿠폰 식별 id                                    |
 | `couponName`     | 쿠폰 이름                                       |
-| `discountType`   | 할인 타입 (`정액` / `정율`)                     |
+| `discountType`   | 할인 타입 (`FIXED`=정액 / `PERCENTAGE`=정율)                     |
 | `isApplicable`   | 활성화(적용 가능) 여부                          |
 | `discountAmount` | 현재 주문 기준 할인 금액 (적용 불가 시 `0`)     |
 | `expiresAt`      | 만료 일시 (ISO 8601, 모달 표시용)               |

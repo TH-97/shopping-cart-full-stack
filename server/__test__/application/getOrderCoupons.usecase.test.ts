@@ -102,7 +102,7 @@ describe('GetOrderCouponsUseCase', () => {
     expect(ok).toMatchObject({
       isApplicable: true,
       discountAmount: 5000,
-      discountType: '정액',
+      discountType: 'FIXED',
     });
     expect(min).toMatchObject({ isApplicable: false, discountAmount: 0 });
   });
@@ -131,7 +131,7 @@ describe('GetOrderCouponsUseCase', () => {
 
     expect(result.coupons[0]).toMatchObject({
       couponId: 'miracle',
-      discountType: '정율',
+      discountType: 'PERCENTAGE',
       expiresAt: future.toISOString(),
       minOrderAmount: null,
       usableFrom: '04:00',

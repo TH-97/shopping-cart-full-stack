@@ -8,15 +8,6 @@ import {
 } from '../../shared/requestParsing.js';
 import type { DiscountType } from './coupon.model.js';
 
-// discount_type(영문 enum) → 응답용 한글 라벨.
-const DISCOUNT_TYPE_LABEL: Record<DiscountType, string> = {
-  FIXED: '정액',
-  PERCENTAGE: '정율',
-};
-
-export const toDiscountTypeLabel = (discountType: DiscountType): string =>
-  DISCOUNT_TYPE_LABEL[discountType];
-
 // GET /coupons?selectedCartItemIds=10,12 → 쉼표 분리 후 빈 토큰 제거.
 // 쿼리가 없으면 빈 배열로 본다(선택 항목 없음).
 export const parseSelectedCartItemIdsQuery = (
@@ -41,7 +32,7 @@ export const parseSelectedCouponIdsDto = (body: unknown): string[] => {
 export type CouponSummaryItem = {
   couponId: string;
   couponName: string;
-  discountType: string;
+  discountType: DiscountType;
   isApplicable: boolean;
   discountAmount: number;
   // 모달 표시용 메타. usableFrom/usableTo는 사용 가능 시간대가 없으면 null.

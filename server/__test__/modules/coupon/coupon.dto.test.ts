@@ -2,17 +2,8 @@ import {
   parseSelectedCartItemIdsQuery,
   parseSelectedCouponIdsDto,
   toCouponsResponse,
-  toDiscountTypeLabel,
+  type CouponSummaryItem,
 } from '../../../src/modules/coupon/coupon.dto.js';
-
-describe('toDiscountTypeLabel', () => {
-  test.each([
-    ['FIXED', '정액'],
-    ['PERCENTAGE', '정율'],
-  ] as const)('%s → %s', (type, label) => {
-    expect(toDiscountTypeLabel(type)).toBe(label);
-  });
-});
 
 describe('parseSelectedCartItemIdsQuery', () => {
   test('쉼표로 분리해 배열로 만든다', () => {
@@ -66,11 +57,11 @@ describe('parseSelectedCouponIdsDto', () => {
 
 describe('toCouponsResponse', () => {
   test('orderAmount와 coupons를 응답 모양으로 묶는다', () => {
-    const coupons = [
+    const coupons: CouponSummaryItem[] = [
       {
         couponId: 'c1',
         couponName: '쿠폰',
-        discountType: '정액',
+        discountType: 'FIXED',
         isApplicable: true,
         discountAmount: 5000,
         expiresAt: '2026-11-30T14:59:59.000Z',

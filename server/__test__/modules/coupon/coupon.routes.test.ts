@@ -102,7 +102,7 @@ describe('GET /coupons', () => {
     expect(res.body.coupons).toHaveLength(1);
     expect(res.body.coupons[0]).toMatchObject({
       couponId: 'fixed',
-      discountType: '정액',
+      discountType: 'FIXED',
       isApplicable: true,
       discountAmount: 5000,
     });

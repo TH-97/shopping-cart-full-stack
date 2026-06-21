@@ -2,7 +2,6 @@ import type { CartItemRepository } from '../modules/cart/cartItem.repository.js'
 import type { CouponContext } from '../modules/coupon/coupon.model.js';
 import type { CouponRepository } from '../modules/coupon/coupon.repository.js';
 import type { CouponSummaryItem } from '../modules/coupon/coupon.dto.js';
-import { toDiscountTypeLabel } from '../modules/coupon/coupon.dto.js';
 import {
   calculateOrderAmount,
   calculateShippingFee,
@@ -53,7 +52,7 @@ export class GetOrderCouponsUseCase {
       return {
         couponId: coupon.couponId,
         couponName: coupon.name,
-        discountType: toDiscountTypeLabel(coupon.discountType),
+        discountType: coupon.discountType,
         isApplicable,
         discountAmount: isApplicable
           ? coupon.calculateDiscount(couponCtx)
