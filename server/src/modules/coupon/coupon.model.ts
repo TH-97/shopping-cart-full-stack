@@ -1,12 +1,13 @@
 // 쿠폰 할인 타입. DB에도 영문으로 저장하고, 응답 직렬화에서 한글로 변환한다.
-export type DiscountType =
-  | 'FIXED'
-  | 'PERCENT'
-  | 'FREE_SHIPPING'
-  | 'BUY_X_GET_1';
+// 순차 계산에서 FIXED(정액)를 먼저, PERCENTAGE(정율)를 나중에 적용한다.
+export type DiscountType = 'FIXED' | 'PERCENTAGE';
+
+// 쿠폰 식별 코드. 할인액·적용 조건 분기의 단일 기준이다(discountType은 정렬 순서용).
+export type CouponCode = 'FIXED5000' | 'BOGO' | 'FREESHIPPING' | 'MIRACLESALE';
 
 export type Type = {
   couponId: string;
+  code: CouponCode;
   name: string;
   discountType: DiscountType;
   discountValue: number;
@@ -20,6 +21,7 @@ export type Type = {
 
 // 쿠폰 적용 여부·할인액 계산에 필요한 주문 맥락.
 // now는 만료/시간대 판정에 쓰며, 테스트에서 주입할 수 있도록 노출한다.
+// orderAmount는 순차 계산 시점 금액(앞선 쿠폰 적용 후 갱신된 값)일 수 있다.
 export type CouponContext = {
   orderAmount: number;
   shippingFee: number;
@@ -30,6 +32,7 @@ export type CouponContext = {
 
 export class Coupon {
   couponId;
+  code;
   name;
   discountType;
   discountValue;
@@ -42,6 +45,7 @@ export class Coupon {
 
   constructor(coupon: Type) {
     this.couponId = coupon.couponId;
+    this.code = coupon.code;
     this.name = coupon.name;
     this.discountType = coupon.discountType;
     this.discountValue = coupon.discountValue;
@@ -53,21 +57,22 @@ export class Coupon {
     this.freeQuantity = coupon.freeQuantity;
   }
 
-  // 타입별 할인액을 계산한다. 적용 가능 여부는 isApplicable에서 별도로 판정한다.
+  // 코드별 할인액을 계산한다. 적용 가능 여부는 isApplicable에서 별도로 판정한다.
+  // orderAmount는 순차 계산 시점 금액이므로, 정율(MIRACLESALE)은 그 시점 금액 기준으로 계산된다.
   calculateDiscount(ctx: CouponContext): number {
-    switch (this.discountType) {
-      case 'FIXED':
+    switch (this.code) {
+      case 'FIXED5000':
         return this.discountValue;
-      case 'PERCENT':
-        return Math.floor((ctx.orderAmount * this.discountValue) / 100);
-      case 'FREE_SHIPPING':
-        return ctx.shippingFee;
-      case 'BUY_X_GET_1':
+      case 'BOGO':
         return this.highestUnitPrice(ctx) * (this.freeQuantity ?? 1);
+      case 'FREESHIPPING':
+        return ctx.shippingFee;
+      case 'MIRACLESALE':
+        return Math.floor((ctx.orderAmount * this.discountValue) / 100);
     }
   }
 
-  // 만료·사용여부·최소주문금액·사용시간대·타입별 조건을 모두 만족하는지.
+  // 만료·사용여부·최소주문금액·사용시간대·코드별 조건을 모두 만족하는지.
   isApplicable(ctx: CouponContext): boolean {
     const now = ctx.now ?? new Date();
 
@@ -76,7 +81,7 @@ export class Coupon {
     if (!this.meetsMinOrderAmount(ctx.orderAmount)) return false;
     if (!this.withinUsableTime(now)) return false;
 
-    return this.meetsTypeCondition(ctx);
+    return this.meetsCodeCondition(ctx);
   }
 
   private isExpired(now: Date): boolean {
@@ -103,20 +108,14 @@ export class Coupon {
     return current >= from || current <= to;
   }
 
-  private meetsTypeCondition(ctx: CouponContext): boolean {
-    if (this.discountType === 'BUY_X_GET_1') {
-      // buyQuantity가 지정되지 않은 BUY_X_GET_1 쿠폰은 적용 조건이 불완전하므로 적용 불가.
+  // 코드별 추가 적용 조건. (만료·사용여부·최소주문·시간대는 isApplicable에서 공통 처리)
+  private meetsCodeCondition(ctx: CouponContext): boolean {
+    if (this.code === 'BOGO') {
+      // "2개 구매 시 1개 무료" = 카트에 3개 있을 때 1개 무료.
+      // buyQuantity가 지정되지 않은 BOGO 쿠폰은 조건이 불완전하므로 적용 불가.
       if (this.buyQuantity == null) return false;
 
-      const totalQuantity = ctx.selectedItems.reduce(
-        (sum, item) => sum + item.quantity,
-        0,
-      );
-      return totalQuantity >= this.buyQuantity;
-    }
-
-    if (this.discountType === 'FREE_SHIPPING') {
-      return ctx.shippingFee > 0;
+      return ctx.selectedItems.some((item) => item.quantity >= this.buyQuantity!);
     }
 
     return true;

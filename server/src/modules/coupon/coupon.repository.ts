@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Coupon, type DiscountType } from './coupon.model.js';
+import {
+  Coupon,
+  type CouponCode,
+  type DiscountType,
+} from './coupon.model.js';
 
 // demo user가 보유한 쿠폰(coupon ⨝ user_coupon) 1건.
 // userCouponId/isUsed는 보유 관계(user_coupon)에서, 나머지는 쿠폰 자체에서 온다.
@@ -17,10 +21,11 @@ export interface CouponRepository {
 
 const TABLE = 'user_coupon';
 const SELECT =
-  'user_coupon_id, is_used, coupon:coupon_id (coupon_id, name, discount_type, discount_value, expires_at, min_order_amount, usable_from, usable_to, buy_quantity, free_quantity)';
+  'user_coupon_id, is_used, coupon:coupon_id (coupon_id, code, name, discount_type, discount_value, expires_at, min_order_amount, usable_from, usable_to, buy_quantity, free_quantity)';
 
 type CouponRow = {
   coupon_id: string;
+  code: string;
   name: string;
   discount_type: string;
   discount_value: number;
@@ -42,6 +47,7 @@ type JoinedRow = {
 const toCoupon = (row: CouponRow): Coupon =>
   new Coupon({
     couponId: row.coupon_id,
+    code: row.code as CouponCode,
     name: row.name,
     discountType: row.discount_type as DiscountType,
     discountValue: row.discount_value,

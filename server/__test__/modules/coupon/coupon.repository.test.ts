@@ -9,6 +9,7 @@ const future = new Date('2099-12-31T23:59:59Z');
 const createCoupon = (couponId: string) =>
   new Coupon({
     couponId,
+    code: 'FIXED5000',
     name: '쿠폰',
     discountType: 'FIXED',
     discountValue: 5000,

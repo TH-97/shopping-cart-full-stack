@@ -87,6 +87,7 @@ describe('GET /coupons', () => {
     addCoupon(
       new Coupon({
         couponId: 'fixed',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -129,6 +130,7 @@ describe('POST /coupons/validate', () => {
     addCoupon(
       new Coupon({
         couponId: 'valid',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -165,6 +167,7 @@ describe('POST /coupons/validate', () => {
     addCoupon(
       new Coupon({
         couponId: 'expired',
+        code: 'FIXED5000',
         name: '만료',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -184,6 +187,7 @@ describe('POST /coupons/validate', () => {
     addCoupon(
       new Coupon({
         couponId: 'used',
+        code: 'FIXED5000',
         name: '사용완료',
         discountType: 'FIXED',
         discountValue: 5000,

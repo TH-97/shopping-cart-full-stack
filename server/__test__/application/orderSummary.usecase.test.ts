@@ -106,38 +106,99 @@ describe('OrderSummaryUseCase', () => {
     ).rejects.toThrow('존재하지 않는 장바구니 상품입니다.');
   });
 
-  test('쿠폰 2장을 합산 적용한다', async () => {
-    addProduct('p1', 10000);
-    addCartItem('ci1', 'p1', 5); // 주문금액 50000
+  test('정액 → 정율 순서로 순차 적용한다 (검산: 100000, FIXED5000+MIRACLESALE)', async () => {
+    addProduct('p1', 50000);
+    addCartItem('ci1', 'p1', 2); // 주문금액 100000 → 배송비 0
     addCoupon(
       new Coupon({
         couponId: 'fixed',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 5000,
         expiresAt: future,
+        minOrderAmount: 100000,
       }),
     );
     addCoupon(
       new Coupon({
-        couponId: 'percent',
-        name: '정률',
-        discountType: 'PERCENT',
-        discountValue: 10,
+        couponId: 'miracle',
+        code: 'MIRACLESALE',
+        name: '정율',
+        discountType: 'PERCENTAGE',
+        discountValue: 30,
         expiresAt: future,
       }),
     );
 
     const summary = await useCase.execute({
       selectedCartItemIds: ['ci1'],
-      selectedCouponIds: ['fixed', 'percent'],
+      // 입력 순서가 정율 먼저여도 정렬되어 정액이 먼저 적용된다.
+      selectedCouponIds: ['miracle', 'fixed'],
       isRemoteArea: false,
       now,
     });
 
-    // 5000 + floor(50000*10/100)=5000 → 10000
-    expect(summary.couponDiscountAmount).toBe(10000);
-    expect(summary.totalPaymentAmount).toBe(50000 - 10000 + 3000);
+    // 100000 - 5000 = 95000, 95000 × 30% = 28500 차감 → 66500. 할인 합 33500.
+    expect(summary.orderAmount).toBe(100000);
+    expect(summary.shippingFee).toBe(0);
+    expect(summary.couponDiscountAmount).toBe(33500);
+    expect(summary.totalPaymentAmount).toBe(66500);
+  });
+
+  test('FREESHIPPING은 배송비를 전액 할인하고 상품금액은 줄이지 않는다', async () => {
+    addProduct('p1', 30000);
+    addCartItem('ci1', 'p1', 2); // 주문금액 60000 → 배송비 3000
+    addCoupon(
+      new Coupon({
+        couponId: 'freeship',
+        code: 'FREESHIPPING',
+        name: '무료배송',
+        discountType: 'FIXED',
+        discountValue: 0,
+        expiresAt: future,
+        minOrderAmount: 50000,
+      }),
+    );
+
+    const summary = await useCase.execute({
+      selectedCartItemIds: ['ci1'],
+      selectedCouponIds: ['freeship'],
+      isRemoteArea: false,
+      now,
+    });
+
+    expect(summary.orderAmount).toBe(60000);
+    expect(summary.shippingFee).toBe(0);
+    expect(summary.couponDiscountAmount).toBe(3000);
+    expect(summary.totalPaymentAmount).toBe(60000);
+  });
+
+  test('FREESHIPPING은 도서산간 추가분 포함 배송비 전액을 할인한다', async () => {
+    addProduct('p1', 30000);
+    addCartItem('ci1', 'p1', 2); // 주문금액 60000, 도서산간 → 배송비 6000
+    addCoupon(
+      new Coupon({
+        couponId: 'freeship',
+        code: 'FREESHIPPING',
+        name: '무료배송',
+        discountType: 'FIXED',
+        discountValue: 0,
+        expiresAt: future,
+        minOrderAmount: 50000,
+      }),
+    );
+
+    const summary = await useCase.execute({
+      selectedCartItemIds: ['ci1'],
+      selectedCouponIds: ['freeship'],
+      isRemoteArea: true,
+      now,
+    });
+
+    expect(summary.shippingFee).toBe(0);
+    expect(summary.couponDiscountAmount).toBe(6000);
+    expect(summary.totalPaymentAmount).toBe(60000);
   });
 
   test('선택 쿠폰이 적용 불가하면 COUPON_NOT_APPLICABLE을 던진다', async () => {
@@ -146,6 +207,7 @@ describe('OrderSummaryUseCase', () => {
     addCoupon(
       new Coupon({
         couponId: 'min',
+        code: 'FIXED5000',
         name: '최소주문',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -198,6 +260,7 @@ describe('OrderSummaryUseCase', () => {
     addCoupon(
       new Coupon({
         couponId: 'fixed',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -222,6 +285,7 @@ describe('OrderSummaryUseCase', () => {
     addCoupon(
       new Coupon({
         couponId: 'a',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -231,6 +295,7 @@ describe('OrderSummaryUseCase', () => {
     addCoupon(
       new Coupon({
         couponId: 'b',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 3000,
@@ -248,30 +313,57 @@ describe('OrderSummaryUseCase', () => {
     expect(summary.couponDiscountAmount).toBe(8000);
   });
 
-  test('BUY_X_GET_1은 선택 항목 중 최고가 단가만큼 할인한다', async () => {
+  test('BOGO는 수량 3 이상 항목이 있을 때 최고가 단가만큼 할인한다', async () => {
     addProduct('cheap', 3000);
     addProduct('pricey', 12000);
     addCartItem('ci1', 'cheap', 1);
-    addCartItem('ci2', 'pricey', 2);
+    addCartItem('ci2', 'pricey', 3); // 수량 3 → BOGO 조건 충족
     addCoupon(
       new Coupon({
-        couponId: 'gift',
+        couponId: 'bogo',
+        code: 'BOGO',
         name: '증정',
-        discountType: 'BUY_X_GET_1',
+        discountType: 'FIXED',
         discountValue: 0,
         expiresAt: future,
-        buyQuantity: 2,
+        buyQuantity: 3,
         freeQuantity: 1,
       }),
     );
 
     const summary = await useCase.execute({
       selectedCartItemIds: ['ci1', 'ci2'],
-      selectedCouponIds: ['gift'],
+      selectedCouponIds: ['bogo'],
       isRemoteArea: false,
       now,
     });
 
     expect(summary.couponDiscountAmount).toBe(12000);
+  });
+
+  test('BOGO는 단일 항목 수량이 3 미만이면 COUPON_NOT_APPLICABLE을 던진다', async () => {
+    addProduct('p1', 12000);
+    addCartItem('ci1', 'p1', 2); // 수량 2 → BOGO 조건 미달
+    addCoupon(
+      new Coupon({
+        couponId: 'bogo',
+        code: 'BOGO',
+        name: '증정',
+        discountType: 'FIXED',
+        discountValue: 0,
+        expiresAt: future,
+        buyQuantity: 3,
+        freeQuantity: 1,
+      }),
+    );
+
+    await expect(
+      useCase.execute({
+        selectedCartItemIds: ['ci1'],
+        selectedCouponIds: ['bogo'],
+        isRemoteArea: false,
+        now,
+      }),
+    ).rejects.toThrow('적용할 수 없는 쿠폰입니다.');
   });
 });

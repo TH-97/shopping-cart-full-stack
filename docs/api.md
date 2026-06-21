@@ -50,12 +50,34 @@ POST /orders/summary
 }
 ```
 
-| 이름                   | 설명           |
-| ---------------------- | -------------- |
-| `orderAmount`          | 주문 금액      |
-| `couponDiscountAmount` | 쿠폰 할인 금액 |
-| `shippingFee`          | 배송비         |
-| `totalPaymentAmount`   | 총 결제 금액   |
+| 이름                   | 설명                                  |
+| ---------------------- | ------------------------------------- |
+| `orderAmount`          | 주문 금액 (쿠폰 적용 전)              |
+| `couponDiscountAmount` | 쿠폰 할인 금액 (상품 할인 + 배송 할인) |
+| `shippingFee`          | 배송비 (무료배송 쿠폰 적용 후 최종)   |
+| `totalPaymentAmount`   | 총 결제 금액                          |
+
+### 쿠폰 적용·계산 규칙
+
+쿠폰은 식별 코드(`code`)로 동작이 결정되고, `discountType`(`FIXED`/`PERCENTAGE`)은 순차 계산의 적용 순서를 정한다.
+
+| code           | discountType | 동작                                                          | 적용 조건                                   |
+| -------------- | ------------ | ------------------------------------------------------------- | ------------------------------------------- |
+| `FIXED5000`    | `FIXED`      | 5,000원 정액 할인                                             | 주문금액 ≥ 100,000원                        |
+| `BOGO`         | `FIXED`      | 선택 항목 중 최고가 단가 × 1개 무료                           | 단일 항목 수량이 3개 이상                   |
+| `FREESHIPPING` | `FIXED`      | 배송비 전액(도서산간 추가분 포함) 할인                        | 주문금액 ≥ 50,000원                         |
+| `MIRACLESALE`  | `PERCENTAGE` | 그 시점 주문금액의 30% 할인                                   | 사용 가능 시간 04:00 ~ 07:00 (KST)          |
+
+금액은 **상품금액 트랙**과 **배송비 트랙**으로 나눠 계산한다.
+
+- **상품금액 트랙**: `FREESHIPPING`을 제외한 선택 쿠폰을 `discountType` 기준으로 정렬해(`FIXED` 먼저, `PERCENTAGE` 나중) 주문금액에 순차 적용한다. 각 단계 금액은 `max(금액 - 할인액, 0)`이며, `PERCENTAGE`는 그 시점 금액 기준으로 계산한다. 상품 할인 = `주문금액 - 최종 금액`.
+- **배송비 트랙**: 선택 쿠폰에 `FREESHIPPING`이 있으면 기준 배송비 전액을 할인하고 최종 배송비는 0이 된다. 없으면 배송 할인 0.
+- 집계: `couponDiscountAmount = 상품 할인 + 배송 할인`, `shippingFee(응답) = 기준 배송비 - 배송 할인`, `totalPaymentAmount = 주문금액 - couponDiscountAmount + 기준 배송비`.
+- **무료배송 기준**: 쿠폰 적용 **전** 주문금액이 100,000원 이상이면 기준 배송비 0, 그 외 기본 3,000원(도서산간이면 +3,000원). `FREESHIPPING` 쿠폰은 그 위에서 배송비를 0으로 만든다.
+
+> 검산 예) 주문금액 100,000원, 쿠폰 `[FIXED5000, MIRACLESALE]`, 도서산간 아님 →
+> 기준 배송비 0(10만 이상). 상품 트랙: 100,000 − 5,000 = 95,000 → 95,000 × 30% = 28,500 차감 → 66,500.
+> 상품 할인 33,500, 배송 할인 0 → `couponDiscountAmount` 33,500, `totalPaymentAmount` 66,500.
 
 ### Error
 
@@ -101,31 +123,43 @@ GET /coupons?selectedCartItemIds=10,12
   "orderAmount": 100000,
   "coupons": [
     {
-      "couponId": "3465",
+      "couponId": "coupon-fixed5000",
       "couponName": "5,000원 할인 쿠폰",
       "discountType": "정액",
       "isApplicable": true,
-      "discountAmount": 5000
+      "discountAmount": 5000,
+      "expiresAt": "2026-11-30T14:59:59.000Z",
+      "minOrderAmount": 100000,
+      "usableFrom": null,
+      "usableTo": null
     },
     {
-      "couponId": "3466",
+      "couponId": "coupon-miraclesale",
       "couponName": "30% 할인 쿠폰",
-      "discountType": "정률",
-      "isApplicable": true,
-      "discountAmount": 30000
+      "discountType": "정율",
+      "isApplicable": false,
+      "discountAmount": 0,
+      "expiresAt": "2026-07-31T14:59:59.000Z",
+      "minOrderAmount": null,
+      "usableFrom": "04:00",
+      "usableTo": "07:00"
     }
   ]
 }
 ```
 
-| 이름             | 설명                                              |
-| ---------------- | ------------------------------------------------- |
-| `orderAmount`    | 선택된 상품 기준 전체 주문 금액                   |
-| `couponId`       | 쿠폰 식별 id                                      |
-| `couponName`     | 쿠폰 이름                                         |
-| `discountType`   | 할인 타입 (`정액` / `정률` / `무료배송` / `증정`) |
-| `isApplicable`   | 활성화(적용 가능) 여부                            |
-| `discountAmount` | 현재 주문 기준 할인 금액 (적용 불가 시 `0`)       |
+| 이름             | 설명                                            |
+| ---------------- | ----------------------------------------------- |
+| `orderAmount`    | 선택된 상품 기준 전체 주문 금액                 |
+| `couponId`       | 쿠폰 식별 id                                    |
+| `couponName`     | 쿠폰 이름                                       |
+| `discountType`   | 할인 타입 (`정액` / `정율`)                     |
+| `isApplicable`   | 활성화(적용 가능) 여부                          |
+| `discountAmount` | 현재 주문 기준 할인 금액 (적용 불가 시 `0`)     |
+| `expiresAt`      | 만료 일시 (ISO 8601, 모달 표시용)               |
+| `minOrderAmount` | 최소 주문 금액 (없으면 `null`)                  |
+| `usableFrom`     | 사용 가능 시작 시각 `HH:MM` KST (없으면 `null`) |
+| `usableTo`       | 사용 가능 종료 시각 `HH:MM` KST (없으면 `null`) |
 
 ### Error
 

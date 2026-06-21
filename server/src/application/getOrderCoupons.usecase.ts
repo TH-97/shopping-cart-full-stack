@@ -58,6 +58,10 @@ export class GetOrderCouponsUseCase {
         discountAmount: isApplicable
           ? coupon.calculateDiscount(couponCtx)
           : 0,
+        expiresAt: coupon.expiresAt.toISOString(),
+        minOrderAmount: coupon.minOrderAmount ?? null,
+        usableFrom: coupon.usableFrom ?? null,
+        usableTo: coupon.usableTo ?? null,
       };
     });
 

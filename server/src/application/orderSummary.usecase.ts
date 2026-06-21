@@ -6,12 +6,14 @@ import {
 import type { CartItemRepository } from '../modules/cart/cartItem.repository.js';
 import { MAX_COUPON_COUNT } from '../modules/coupon/coupon.service.js';
 import type { CouponRepository } from '../modules/coupon/coupon.repository.js';
-import type { CouponContext } from '../modules/coupon/coupon.model.js';
+import type { Coupon, CouponContext } from '../modules/coupon/coupon.model.js';
 import {
   calculateOrderAmount,
+  calculateProductDiscount,
+  calculateShippingDiscount,
   calculateShippingFee,
   calculateTotalPayment,
-  sumCouponDiscount,
+  type ProductCoupon,
 } from '../modules/order/order.calculation.js';
 import { resolveSelectedItems } from '../modules/order/resolveSelectedItems.js';
 import type { OrderSummary } from '../modules/order/order.dto.js';
@@ -42,45 +44,67 @@ export class OrderSummaryUseCase {
       input.selectedCartItemIds,
     );
     const orderAmount = calculateOrderAmount(selectedItems);
-    const shippingFee = calculateShippingFee(orderAmount, input.isRemoteArea);
+    // 무료배송 기준은 쿠폰 적용 전 주문금액으로 판정한다(도서산간이면 추가 요금 포함).
+    const baseShippingFee = calculateShippingFee(orderAmount, input.isRemoteArea);
 
-    const ctx: CouponContext = {
-      orderAmount,
-      shippingFee,
-      selectedItems,
-      now,
-    };
-
-    const couponDiscountAmount = await this.resolveCouponDiscount(
+    const coupons = await this.resolveAppliedCoupons(
       input.selectedCouponIds,
-      ctx,
+      { orderAmount, shippingFee: baseShippingFee, selectedItems, now },
     );
+
+    // 트랙 A(상품금액): 정액 먼저 → 정율 나중 순차 적용. FREESHIPPING은 제외.
+    const productCoupons = coupons
+      .filter((coupon) => coupon.code !== 'FREESHIPPING')
+      .map((coupon): ProductCoupon => ({
+        discountType: coupon.discountType,
+        applyTo: (amount) =>
+          coupon.calculateDiscount({
+            orderAmount: amount,
+            shippingFee: baseShippingFee,
+            selectedItems,
+            now,
+          }),
+      }));
+    const productDiscount = calculateProductDiscount(orderAmount, productCoupons);
+
+    // 트랙 B(배송비): FREESHIPPING이 있으면 배송비 전액 할인.
+    const hasFreeShipping = coupons.some(
+      (coupon) => coupon.code === 'FREESHIPPING',
+    );
+    const shippingDiscount = calculateShippingDiscount(
+      baseShippingFee,
+      hasFreeShipping,
+    );
+
+    const couponDiscountAmount = productDiscount + shippingDiscount;
+    const finalShippingFee = baseShippingFee - shippingDiscount;
 
     return {
       orderAmount,
       couponDiscountAmount,
-      shippingFee,
+      shippingFee: finalShippingFee,
       totalPaymentAmount: calculateTotalPayment(
         orderAmount,
         couponDiscountAmount,
-        shippingFee,
+        baseShippingFee,
       ),
     };
   }
 
-  // 선택 쿠폰을 조회·검증하고 적용 가능한 경우의 할인 합을 계산한다.
-  private async resolveCouponDiscount(
+  // 선택 쿠폰을 조회·검증해 적용 가능한 Coupon 도메인 목록을 돌려준다.
+  // 적용 불가/미존재/개수 초과는 throw한다(계산은 호출부 트랙 A/B에서 한다).
+  private async resolveAppliedCoupons(
     selectedCouponIds: string[],
     ctx: CouponContext,
-  ): Promise<number> {
-    // 중복 ID는 같은 쿠폰이 두 번 합산되지 않도록 제거한다(limit도 unique 개수 기준).
+  ): Promise<Coupon[]> {
+    // 중복 ID는 같은 쿠폰이 두 번 적용되지 않도록 제거한다(limit도 unique 개수 기준).
     const uniqueCouponIds = [...new Set(selectedCouponIds)];
-    if (uniqueCouponIds.length === 0) return 0;
+    if (uniqueCouponIds.length === 0) return [];
     if (uniqueCouponIds.length > MAX_COUPON_COUNT) {
       throw exceedsCouponLimitError();
     }
 
-    const discounts = await Promise.all(
+    return Promise.all(
       uniqueCouponIds.map(async (couponId) => {
         const owned = await this.couponRepository.findById(couponId);
         if (!owned) throw couponNotFoundError();
@@ -90,10 +114,8 @@ export class OrderSummaryUseCase {
           throw couponNotApplicableError();
         }
 
-        return owned.coupon.calculateDiscount(couponCtx);
+        return owned.coupon;
       }),
     );
-
-    return sumCouponDiscount(discounts, ctx.orderAmount, ctx.shippingFee);
   }
 }

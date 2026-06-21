@@ -23,6 +23,7 @@ describe('CouponService.validate', () => {
       couponId,
       new Coupon({
         couponId,
+        code: 'FIXED5000',
         name: '쿠폰',
         discountType: 'FIXED',
         discountValue: 5000,

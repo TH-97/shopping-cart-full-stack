@@ -70,6 +70,7 @@ describe('GetOrderCouponsUseCase', () => {
     addCoupon(
       new Coupon({
         couponId: 'ok',
+        code: 'FIXED5000',
         name: '정액',
         discountType: 'FIXED',
         discountValue: 5000,
@@ -79,6 +80,7 @@ describe('GetOrderCouponsUseCase', () => {
     addCoupon(
       new Coupon({
         couponId: 'min',
+        code: 'FIXED5000',
         name: '최소주문',
         discountType: 'FIXED',
         discountValue: 3000,
@@ -105,12 +107,45 @@ describe('GetOrderCouponsUseCase', () => {
     expect(min).toMatchObject({ isApplicable: false, discountAmount: 0 });
   });
 
+  test('응답에 만료일·최소주문·사용시간 메타를 포함한다(모달 표시용)', async () => {
+    addProduct('p1', 10000);
+    addCartItem('ci1', 'p1', 1);
+    addCoupon(
+      new Coupon({
+        couponId: 'miracle',
+        code: 'MIRACLESALE',
+        name: '30% 할인 쿠폰',
+        discountType: 'PERCENTAGE',
+        discountValue: 30,
+        expiresAt: future,
+        usableFrom: '04:00',
+        usableTo: '07:00',
+      }),
+    );
+
+    const result = await useCase.execute({
+      selectedCartItemIds: ['ci1'],
+      userId: 'demo-user',
+      now,
+    });
+
+    expect(result.coupons[0]).toMatchObject({
+      couponId: 'miracle',
+      discountType: '정율',
+      expiresAt: future.toISOString(),
+      minOrderAmount: null,
+      usableFrom: '04:00',
+      usableTo: '07:00',
+    });
+  });
+
   test('적용 불가 쿠폰은 throw하지 않고 할인 0으로 내려간다', async () => {
     addProduct('p1', 10000);
     addCartItem('ci1', 'p1', 1);
     addCoupon(
       new Coupon({
         couponId: 'expired',
+        code: 'FIXED5000',
         name: '만료',
         discountType: 'FIXED',
         discountValue: 5000,

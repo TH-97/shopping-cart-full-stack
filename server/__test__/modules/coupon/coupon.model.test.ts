@@ -10,6 +10,7 @@ const now = new Date('2026-06-20T10:00:00Z');
 const createCoupon = (overrides: Partial<Type> = {}) =>
   new Coupon({
     couponId: 'c1',
+    code: 'FIXED5000',
     name: '쿠폰',
     discountType: 'FIXED',
     discountValue: 5000,
@@ -26,45 +27,64 @@ const ctx = (overrides: Partial<CouponContext> = {}): CouponContext => ({
 });
 
 describe('Coupon.calculateDiscount', () => {
-  test('FIXED는 discountValue를 그대로 반환한다', () => {
-    const coupon = createCoupon({ discountType: 'FIXED', discountValue: 5000 });
+  test('FIXED5000은 discountValue를 그대로 반환한다', () => {
+    const coupon = createCoupon({ code: 'FIXED5000', discountValue: 5000 });
     expect(coupon.calculateDiscount(ctx())).toBe(5000);
   });
 
-  test('PERCENT는 floor(orderAmount × value / 100)을 반환한다', () => {
-    const coupon = createCoupon({ discountType: 'PERCENT', discountValue: 10 });
-    expect(coupon.calculateDiscount(ctx({ orderAmount: 33333 }))).toBe(3333);
+  test('MIRACLESALE은 floor(orderAmount × value / 100)을 반환한다', () => {
+    const coupon = createCoupon({
+      code: 'MIRACLESALE',
+      discountType: 'PERCENTAGE',
+      discountValue: 30,
+    });
+    expect(coupon.calculateDiscount(ctx({ orderAmount: 33333 }))).toBe(9999);
   });
 
-  test('FREE_SHIPPING은 현재 배송비를 반환한다', () => {
-    const coupon = createCoupon({ discountType: 'FREE_SHIPPING' });
+  test('MIRACLESALE은 ctx.orderAmount(순차 계산 시점 금액) 기준으로 계산한다', () => {
+    const coupon = createCoupon({
+      code: 'MIRACLESALE',
+      discountType: 'PERCENTAGE',
+      discountValue: 30,
+    });
+    // 앞선 쿠폰 적용 후 갱신된 금액(95000)을 넘기면 그 기준으로 계산.
+    expect(coupon.calculateDiscount(ctx({ orderAmount: 95000 }))).toBe(28500);
+  });
+
+  test('FREESHIPPING은 현재 배송비를 반환한다', () => {
+    const coupon = createCoupon({ code: 'FREESHIPPING', discountValue: 0 });
     expect(coupon.calculateDiscount(ctx({ shippingFee: 6000 }))).toBe(6000);
   });
 
-  test('FREE_SHIPPING은 배송비가 0이면 0을 반환한다', () => {
-    const coupon = createCoupon({ discountType: 'FREE_SHIPPING' });
+  test('FREESHIPPING은 배송비가 0이면 0을 반환한다', () => {
+    const coupon = createCoupon({ code: 'FREESHIPPING', discountValue: 0 });
     expect(coupon.calculateDiscount(ctx({ shippingFee: 0 }))).toBe(0);
   });
 
-  test('BUY_X_GET_1은 최고가 단가 × freeQuantity를 반환한다', () => {
+  test('BOGO는 최고가 단가 × freeQuantity를 반환한다', () => {
     const coupon = createCoupon({
-      discountType: 'BUY_X_GET_1',
-      buyQuantity: 2,
+      code: 'BOGO',
+      discountValue: 0,
+      buyQuantity: 3,
       freeQuantity: 1,
     });
     const result = coupon.calculateDiscount(
       ctx({
         selectedItems: [
           { unitPrice: 3000, quantity: 1 },
-          { unitPrice: 12000, quantity: 2 },
+          { unitPrice: 12000, quantity: 3 },
         ],
       }),
     );
     expect(result).toBe(12000);
   });
 
-  test('BUY_X_GET_1은 freeQuantity가 없으면 1로 본다', () => {
-    const coupon = createCoupon({ discountType: 'BUY_X_GET_1', buyQuantity: 2 });
+  test('BOGO는 freeQuantity가 없으면 1로 본다', () => {
+    const coupon = createCoupon({
+      code: 'BOGO',
+      discountValue: 0,
+      buyQuantity: 3,
+    });
     const result = coupon.calculateDiscount(
       ctx({ selectedItems: [{ unitPrice: 7000, quantity: 3 }] }),
     );
@@ -105,18 +125,29 @@ describe('Coupon.isApplicable', () => {
     expect(coupon.isApplicable(ctx({ orderAmount: 50000 }))).toBe(true);
   });
 
-  test('사용 시간대 밖이면 false (KST 기준)', () => {
-    const coupon = createCoupon({ usableFrom: '13:00', usableTo: '14:00' });
-    // 03:00Z = 12:00 KST → 구간 밖
-    const at1200Kst = new Date('2026-06-20T03:00:00Z');
-    expect(coupon.isApplicable(ctx({ now: at1200Kst }))).toBe(false);
+  test('MIRACLESALE: 사용 시간대 밖이면 false (KST 기준)', () => {
+    const coupon = createCoupon({
+      code: 'MIRACLESALE',
+      discountType: 'PERCENTAGE',
+      discountValue: 30,
+      usableFrom: '04:00',
+      usableTo: '07:00',
+    });
+    // 10:00Z = 19:00 KST → 구간 밖
+    expect(coupon.isApplicable(ctx({ now }))).toBe(false);
   });
 
-  test('사용 시간대 안이면 true(경계 포함, KST 기준)', () => {
-    const coupon = createCoupon({ usableFrom: '13:00', usableTo: '14:00' });
-    // 04:00Z = 13:00 KST → 시작 경계 포함
-    const at1300Kst = new Date('2026-06-20T04:00:00Z');
-    expect(coupon.isApplicable(ctx({ now: at1300Kst }))).toBe(true);
+  test('MIRACLESALE: 사용 시간대 안이면 true(경계 포함, KST 기준)', () => {
+    const coupon = createCoupon({
+      code: 'MIRACLESALE',
+      discountType: 'PERCENTAGE',
+      discountValue: 30,
+      usableFrom: '04:00',
+      usableTo: '07:00',
+    });
+    // 19:00Z = 04:00 KST → 시작 경계 포함
+    const at0400Kst = new Date('2026-06-19T19:00:00Z');
+    expect(coupon.isApplicable(ctx({ now: at0400Kst }))).toBe(true);
   });
 
   test('자정 횡단 구간: from > to면 from 이후 또는 to 이전이 true (KST 기준)', () => {
@@ -144,17 +175,18 @@ describe('Coupon.isApplicable', () => {
     expect(coupon.isApplicable(ctx({ now: atTo }))).toBe(true);
   });
 
-  test('BUY_X_GET_1: buyQuantity가 없으면 적용 불가(false)', () => {
-    const coupon = createCoupon({ discountType: 'BUY_X_GET_1' });
+  test('BOGO: buyQuantity가 없으면 적용 불가(false)', () => {
+    const coupon = createCoupon({ code: 'BOGO', discountValue: 0 });
     const result = coupon.isApplicable(
       ctx({ selectedItems: [{ unitPrice: 1000, quantity: 5 }] }),
     );
     expect(result).toBe(false);
   });
 
-  test('BUY_X_GET_1: 선택 수량 합이 buyQuantity 미만이면 false', () => {
+  test('BOGO: 단일 항목 수량이 buyQuantity 미만이면 false', () => {
     const coupon = createCoupon({
-      discountType: 'BUY_X_GET_1',
+      code: 'BOGO',
+      discountValue: 0,
       buyQuantity: 3,
     });
     const result = coupon.isApplicable(
@@ -163,24 +195,37 @@ describe('Coupon.isApplicable', () => {
     expect(result).toBe(false);
   });
 
-  test('BUY_X_GET_1: 선택 수량 합이 buyQuantity 이상이면 true', () => {
+  test('BOGO: 수량이 buyQuantity 이상인 항목이 하나라도 있으면 true', () => {
     const coupon = createCoupon({
-      discountType: 'BUY_X_GET_1',
+      code: 'BOGO',
+      discountValue: 0,
       buyQuantity: 3,
     });
     const result = coupon.isApplicable(
-      ctx({ selectedItems: [{ unitPrice: 1000, quantity: 3 }] }),
+      ctx({
+        selectedItems: [
+          { unitPrice: 1000, quantity: 1 },
+          { unitPrice: 2000, quantity: 3 },
+        ],
+      }),
     );
     expect(result).toBe(true);
   });
 
-  test('FREE_SHIPPING: 배송비가 0이면 false', () => {
-    const coupon = createCoupon({ discountType: 'FREE_SHIPPING' });
-    expect(coupon.isApplicable(ctx({ shippingFee: 0 }))).toBe(false);
-  });
-
-  test('FREE_SHIPPING: 배송비가 0보다 크면 true', () => {
-    const coupon = createCoupon({ discountType: 'FREE_SHIPPING' });
-    expect(coupon.isApplicable(ctx({ shippingFee: 3000 }))).toBe(true);
+  test('BOGO: 수량 합은 3이어도 단일 항목이 3 미만이면 false', () => {
+    const coupon = createCoupon({
+      code: 'BOGO',
+      discountValue: 0,
+      buyQuantity: 3,
+    });
+    const result = coupon.isApplicable(
+      ctx({
+        selectedItems: [
+          { unitPrice: 1000, quantity: 2 },
+          { unitPrice: 2000, quantity: 2 },
+        ],
+      }),
+    );
+    expect(result).toBe(false);
   });
 });

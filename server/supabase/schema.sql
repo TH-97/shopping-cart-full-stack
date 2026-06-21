@@ -29,17 +29,20 @@ create table if not exists cart_item (
 
 create table if not exists coupon (
   coupon_id      text primary key,
+  code           text    not null,
   name           text    not null,
   discount_type  text    not null,
   discount_value integer not null,
   expires_at     timestamptz not null
 );
 
--- step3 주문 요약·쿠폰: 쿠폰 적용 조건용 컬럼 확장.
--- discount_type 영문 enum(FIXED/PERCENT/FREE_SHIPPING/BUY_X_GET_1) 기준.
+-- step3 주문 요약·쿠폰: 쿠폰 식별 코드·적용 조건용 컬럼 확장.
+-- code: 할인액·적용 조건 분기 기준(FIXED5000/BOGO/FREESHIPPING/MIRACLESALE).
+-- discount_type 영문 enum(FIXED/PERCENTAGE) 기준 — 순차 계산 정렬용(정액 먼저, 정율 나중).
 -- min_order_amount: 최소 주문 금액(없으면 NULL).
 -- usable_from/usable_to: 'HH:MM' 사용 가능 시간대(없으면 NULL).
--- buy_quantity/free_quantity: BUY_X_GET_1 증정 조건/수량.
+-- buy_quantity/free_quantity: BOGO 증정 조건/수량(buy_quantity=3 → 3개 있을 때 1개 무료).
+alter table coupon add column if not exists code text;
 alter table coupon add column if not exists min_order_amount integer;
 alter table coupon add column if not exists usable_from text;
 alter table coupon add column if not exists usable_to   text;
@@ -58,8 +61,8 @@ create index if not exists idx_cart_item_product_id on cart_item(product_id);
 create index if not exists idx_cart_item_cart_id    on cart_item(cart_id);
 create index if not exists idx_user_coupon_user_id  on user_coupon(user_id);
 
--- step3 데모 시드: 데모 유저와 보유 쿠폰 4종(정액/정률/무료배송/증정).
--- 만료일은 충분히 먼 미래로 둔다. 재실행 시 충돌하지 않도록 do nothing.
+-- step3 데모 시드: 데모 유저와 보유 쿠폰 4종(FIXED5000/BOGO/FREESHIPPING/MIRACLESALE).
+-- 만료일은 KST(+09:00) 기준으로 명시한다. 재실행 시 충돌하지 않도록 do nothing.
 insert into "user" (user_id)
 values ('demo-user')
 on conflict (user_id) do nothing;
@@ -70,18 +73,24 @@ values ('demo-cart', 'demo-user')
 on conflict (cart_id) do nothing;
 
 insert into coupon (
-  coupon_id, name, discount_type, discount_value, expires_at,
+  coupon_id, code, name, discount_type, discount_value, expires_at,
   min_order_amount, usable_from, usable_to, buy_quantity, free_quantity
 ) values
-  ('coupon-fixed',         '5,000원 할인 쿠폰',        'FIXED',         5000, '2099-12-31T23:59:59Z', 0,    null, null, null, null),
-  ('coupon-percent',       '10% 할인 쿠폰',            'PERCENT',         10, '2099-12-31T23:59:59Z', 0,    null, null, null, null),
-  ('coupon-free-shipping', '무료배송 쿠폰',            'FREE_SHIPPING',    0, '2099-12-31T23:59:59Z', 0,    null, null, null, null),
-  ('coupon-buy-x-get-1',   '2개 구매 시 1개 무료 쿠폰', 'BUY_X_GET_1',      0, '2099-12-31T23:59:59Z', null, null, null,    2,    1)
+  ('coupon-fixed5000',     'FIXED5000',    '5,000원 할인 쿠폰',        'FIXED',      5000, '2026-11-30T23:59:59+09:00', 100000, null,    null,    null, null),
+  ('coupon-bogo',          'BOGO',         '2개 구매 시 1개 무료 쿠폰', 'FIXED',         0, '2026-06-30T23:59:59+09:00', null,   null,    null,       3,    1),
+  ('coupon-freeshipping',  'FREESHIPPING', '무료배송 쿠폰',            'FIXED',         0, '2026-08-31T23:59:59+09:00', 50000,  null,    null,    null, null),
+  ('coupon-miraclesale',   'MIRACLESALE',  '30% 할인 쿠폰',            'PERCENTAGE',   30, '2026-07-31T23:59:59+09:00', null,   '04:00', '07:00', null, null)
 on conflict (coupon_id) do nothing;
 
+-- code는 not null이므로 기존 row가 있던 DB를 위해 채워준다(신규 시드는 위에서 이미 채움).
+update coupon set code = 'FIXED5000'    where coupon_id = 'coupon-fixed5000'    and code is null;
+update coupon set code = 'BOGO'         where coupon_id = 'coupon-bogo'         and code is null;
+update coupon set code = 'FREESHIPPING' where coupon_id = 'coupon-freeshipping' and code is null;
+update coupon set code = 'MIRACLESALE'  where coupon_id = 'coupon-miraclesale'  and code is null;
+
 insert into user_coupon (user_coupon_id, is_used, coupon_id, user_id) values
-  ('user-coupon-fixed',         false, 'coupon-fixed',         'demo-user'),
-  ('user-coupon-percent',       false, 'coupon-percent',       'demo-user'),
-  ('user-coupon-free-shipping', false, 'coupon-free-shipping', 'demo-user'),
-  ('user-coupon-buy-x-get-1',   false, 'coupon-buy-x-get-1',   'demo-user')
+  ('user-coupon-fixed5000',    false, 'coupon-fixed5000',    'demo-user'),
+  ('user-coupon-bogo',         false, 'coupon-bogo',         'demo-user'),
+  ('user-coupon-freeshipping', false, 'coupon-freeshipping', 'demo-user'),
+  ('user-coupon-miraclesale',  false, 'coupon-miraclesale',  'demo-user')
 on conflict (user_coupon_id) do nothing;

@@ -8,9 +8,7 @@ import {
 describe('toDiscountTypeLabel', () => {
   test.each([
     ['FIXED', '정액'],
-    ['PERCENT', '정률'],
-    ['FREE_SHIPPING', '무료배송'],
-    ['BUY_X_GET_1', '증정'],
+    ['PERCENTAGE', '정율'],
   ] as const)('%s → %s', (type, label) => {
     expect(toDiscountTypeLabel(type)).toBe(label);
   });
@@ -75,6 +73,10 @@ describe('toCouponsResponse', () => {
         discountType: '정액',
         isApplicable: true,
         discountAmount: 5000,
+        expiresAt: '2026-11-30T14:59:59.000Z',
+        minOrderAmount: 100000,
+        usableFrom: null,
+        usableTo: null,
       },
     ];
     expect(toCouponsResponse(50000, coupons)).toEqual({

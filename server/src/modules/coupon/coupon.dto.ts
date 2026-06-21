@@ -11,9 +11,7 @@ import type { DiscountType } from './coupon.model.js';
 // discount_type(영문 enum) → 응답용 한글 라벨.
 const DISCOUNT_TYPE_LABEL: Record<DiscountType, string> = {
   FIXED: '정액',
-  PERCENT: '정률',
-  FREE_SHIPPING: '무료배송',
-  BUY_X_GET_1: '증정',
+  PERCENTAGE: '정율',
 };
 
 export const toDiscountTypeLabel = (discountType: DiscountType): string =>
@@ -46,6 +44,11 @@ export type CouponSummaryItem = {
   discountType: string;
   isApplicable: boolean;
   discountAmount: number;
+  // 모달 표시용 메타. usableFrom/usableTo는 사용 가능 시간대가 없으면 null.
+  expiresAt: string;
+  minOrderAmount: number | null;
+  usableFrom: string | null;
+  usableTo: string | null;
 };
 
 export const toCouponsResponse = (

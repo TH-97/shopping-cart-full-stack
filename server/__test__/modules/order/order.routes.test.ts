@@ -97,6 +97,7 @@ describe('POST /orders/summary', () => {
       'min',
       new Coupon({
         couponId: 'min',
+        code: 'FIXED5000',
         name: '최소주문',
         discountType: 'FIXED',
         discountValue: 5000,
