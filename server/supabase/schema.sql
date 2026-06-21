@@ -88,6 +88,9 @@ update coupon set code = 'BOGO'         where coupon_id = 'coupon-bogo'         
 update coupon set code = 'FREESHIPPING' where coupon_id = 'coupon-freeshipping' and code is null;
 update coupon set code = 'MIRACLESALE'  where coupon_id = 'coupon-miraclesale'  and code is null;
 
+-- 모든 row의 code가 채워진 뒤 NOT NULL로 승격(의도대로 제약 강제).
+alter table coupon alter column code set not null;
+
 insert into user_coupon (user_coupon_id, is_used, coupon_id, user_id) values
   ('user-coupon-fixed5000',    false, 'coupon-fixed5000',    'demo-user'),
   ('user-coupon-bogo',         false, 'coupon-bogo',         'demo-user'),
