@@ -26,10 +26,12 @@ test('금액을 서버 주문 요약 값으로 표시한다', async () => {
   await screen.findByText('상품이름A');
 
   // 35,000x2 + 25,000x2 = 120,000 (>= 100,000 → 무료배송)
-  // 주문 금액/총 결제 금액 둘 다 120,000원(toLocaleString 표기)
-  expect((await screen.findAllByText('120,000원')).length).toBe(2);
-  // 배송비 0원: 쿠폰 할인 0원과 함께 0원이 2개 표시된다
-  expect(screen.getAllByText('0원').length).toBe(2);
+  // best-combo로 적용가능 쿠폰 2개(5,000+3,000)가 자동 선택되어 쿠폰 할인 8,000원.
+  // 주문 금액 120,000 / 쿠폰 할인 8,000 / 배송비 0 / 총액 112,000.
+  expect(await screen.findByText('120,000원')).toBeInTheDocument();
+  expect(screen.getByText('8,000원')).toBeInTheDocument();
+  expect(screen.getByText('0원')).toBeInTheDocument();
+  expect(screen.getByText('112,000원')).toBeInTheDocument();
 });
 
 test('도서산간 토글 시 요약이 재호출되어 배송비/총액이 바뀐다', async () => {
@@ -39,17 +41,18 @@ test('도서산간 토글 시 요약이 재호출되어 배송비/총액이 바�
   renderPage();
   await screen.findByText('상품이름A');
 
-  // remote=false: 배송비 3,000 / 총액 73,000
+  // best-combo 쿠폰 할인 8,000원 자동 적용.
+  // remote=false: 70,000 - 8,000 + 배송비 3,000 = 65,000
   expect(await screen.findByText('3,000원')).toBeInTheDocument();
-  expect(screen.getByText('73,000원')).toBeInTheDocument();
+  expect(screen.getByText('65,000원')).toBeInTheDocument();
 
   await userEvent.click(
     screen.getByRole('checkbox', { name: '제주도 및 도서 산간 지역' }),
   );
 
-  // remote=true: 배송비 6,000 / 총액 76,000
+  // remote=true: 70,000 - 8,000 + 배송비 6,000 = 68,000
   expect(await screen.findByText('6,000원')).toBeInTheDocument();
-  expect(screen.getByText('76,000원')).toBeInTheDocument();
+  expect(screen.getByText('68,000원')).toBeInTheDocument();
 });
 
 test('요약 로딩 중 로딩 표시 후 사라진다', async () => {
@@ -104,4 +107,41 @@ test('결제하기 버튼이 존재한다', async () => {
   expect(
     await screen.findByRole('button', { name: '결제하기' }),
   ).toBeInTheDocument();
+});
+
+test('쿠폰 적용 버튼을 누르면 쿠폰 선택 모달이 열린다', async () => {
+  renderPage();
+  await screen.findByText('상품이름A');
+
+  await userEvent.click(screen.getByRole('button', { name: '쿠폰 적용' }));
+
+  expect(
+    await screen.findByRole('dialog', { name: '쿠폰을 선택해 주세요' }),
+  ).toBeInTheDocument();
+  // 적용 가능/불가 쿠폰이 모두 목록에 나온다.
+  expect(screen.getByText('5,000원 할인 쿠폰')).toBeInTheDocument();
+  expect(screen.getByText('미라클모닝 50% 쿠폰')).toBeInTheDocument();
+});
+
+test('쿠폰 선택을 해제하면 요약이 재호출되어 할인/총액이 바뀐다', async () => {
+  // 상품A만 선택(70,000원). best-combo로 쿠폰 8,000원 자동 적용 → 총액 65,000.
+  localStorage.setItem('selectedIds', JSON.stringify(['1']));
+
+  renderPage();
+  await screen.findByText('상품이름A');
+
+  expect(await screen.findByText('8,000원')).toBeInTheDocument();
+  expect(screen.getByText('65,000원')).toBeInTheDocument();
+
+  // 모달에서 5,000원 쿠폰을 해제하면 할인 3,000원으로 줄고 총액이 오른다.
+  await userEvent.click(screen.getByRole('button', { name: '쿠폰 적용' }));
+  await screen.findByRole('dialog', { name: '쿠폰을 선택해 주세요' });
+  await userEvent.click(
+    screen.getByRole('checkbox', { name: '5,000원 할인 쿠폰' }),
+  );
+
+  // 70,000 - 3,000(쿠폰) + 3,000(배송) = 70,000. 주문 금액·총 결제 금액 모두 70,000원.
+  expect((await screen.findAllByText('70,000원')).length).toBe(2);
+  // 쿠폰 할인 3,000원과 배송비 3,000원이 모두 표시된다.
+  expect(screen.getAllByText('3,000원').length).toBe(2);
 });

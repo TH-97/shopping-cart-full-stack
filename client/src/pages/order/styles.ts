@@ -153,6 +153,65 @@ export const SummaryTotalValue = styled.span`
   font-weight: bold;
 `;
 
+export const CouponNotice = styled.p`
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #666;
+  text-align: left;
+`;
+
+export const CouponList = styled.ul`
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+export const CouponItemRow = styled.li<{ disabled: boolean }>`
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  text-align: left;
+  color: ${({ disabled }) => (disabled ? '#bbb' : 'inherit')};
+`;
+
+export const CouponInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+export const CouponName = styled.span`
+  font-size: 15px;
+  font-weight: bold;
+`;
+
+export const CouponMeta = styled.span`
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.8;
+`;
+
+export const CouponUseButton = styled.button`
+  width: 100%;
+  padding: 16px;
+  background-color: #333;
+  color: white;
+  font-size: 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+  }
+`;
+
 export const RemoteAreaLabel = styled.label`
   display: flex;
   align-items: center;

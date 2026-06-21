@@ -219,6 +219,48 @@ export const EmptyMessage = styled.p`
   color: #888;
 `;
 
+export const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+`;
+
+export const ModalContainer = styled.div`
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  background-color: white;
+  border-radius: 8px 8px 0 0;
+  outline: none;
+`;
+
+export const ModalHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+`;
+
+export const ModalTitle = styled.h2`
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+`;
+
+export const ModalCloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+`;
+
 const spin = keyframes`
   to {
     transform: rotate(360deg);

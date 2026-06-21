@@ -13,13 +13,18 @@ import {
 import { OrderItemList } from './components/OrderItemList';
 import { OrderSummaryBox } from './components/OrderSummaryBox';
 import { RemoteAreaCheckbox } from './components/RemoteAreaCheckbox';
+import { useMemo } from 'react';
 import { useCartQuery } from '../../hooks/useCartQuery';
 import { useSelectedIds } from '../../hooks/useSelectedIds';
 import { useRemoteArea } from '../../hooks/useRemoteArea';
 import { useOrderSummary } from '../../hooks/useOrderSummary';
+import { useCoupons } from '../../hooks/useCoupons';
+import { useCouponSelection } from '../../hooks/useCouponSelection';
+import { CouponModal } from './components/CouponModal';
 import { IsLoding } from '../../components/IsLoding';
 import { ErrorView } from '../../components/ErrorView';
 import type { CartItemData } from '../../types/cart';
+import type { CouponData } from '../../types/coupon';
 
 function OrderHeader() {
   const navigate = useNavigate();
@@ -101,12 +106,30 @@ function SelectedOrderConfirm({
 }: SelectedOrderConfirmProps) {
   const { isRemoteArea, toggle } = useRemoteArea();
 
-  // 쿠폰 선택은 4b에서 연결한다(현재는 빈 배열 고정).
+  // 보유 쿠폰(서버상태). 선택 항목 기준 적용여부/할인액을 가져온다.
+  const couponsState = useCoupons(selectedCartItemIds);
+
+  // 적용 가능 쿠폰만 추려 best-combo 초기화 입력으로 넘긴다.
+  // 같은 데이터면 참조가 안정되도록 ready 데이터를 key로 memo한다.
+  const applicableCoupons = useMemo<CouponData[]>(() => {
+    if (couponsState.status !== 'ready') return [];
+    return couponsState.data.coupons.filter((coupon) => coupon.isApplicable);
+  }, [couponsState]);
+
+  const { selectedCouponIds, isModalOpen, open, close, toggleCoupon } =
+    useCouponSelection(applicableCoupons);
+
+  // 선택 항목·쿠폰·도서산간이 바뀌면 서버 요약이 자동 재계산된다.
   const summaryState = useOrderSummary({
     selectedCartItemIds,
-    selectedCouponIds: [],
+    selectedCouponIds,
     isRemoteArea,
   });
+
+  const couponDiscountAmount =
+    summaryState.status === 'ready'
+      ? summaryState.data.couponDiscountAmount
+      : 0;
 
   const totalCount = selectedItems.reduce(
     (sum, item) => sum + item.purchaseQuantity,
@@ -127,8 +150,7 @@ function SelectedOrderConfirm({
 
         <OrderItemList items={selectedItems} />
 
-        {/* 4b에서 쿠폰 모달과 연결한다. */}
-        <CouponButton type="button" onClick={() => {}}>
+        <CouponButton type="button" onClick={open}>
           쿠폰 적용
         </CouponButton>
 
@@ -136,6 +158,16 @@ function SelectedOrderConfirm({
 
         <OrderSummaryBox state={summaryState} />
       </Content>
+
+      {isModalOpen && (
+        <CouponModal
+          couponsState={couponsState}
+          selectedCouponIds={selectedCouponIds}
+          onToggle={toggleCoupon}
+          couponDiscountAmount={couponDiscountAmount}
+          onClose={close}
+        />
+      )}
 
       {/* 4c에서 결제 액션과 연결한다. */}
       <PayButton type="button" onClick={() => {}}>

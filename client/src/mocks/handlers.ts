@@ -37,6 +37,55 @@ export const resetMockCart = (): void => {
   cart = initialCart();
 };
 
+// 고정 쿠폰 fixture(적용가능/불가 혼합). 각 쿠폰의 단독 고정 할인액은 fixedDiscount로 둔다.
+const MOCK_COUPONS = [
+  {
+    couponId: 'FIXED5000',
+    couponName: '5,000원 할인 쿠폰',
+    discountType: 'FIXED' as const,
+    isApplicable: true,
+    discountAmount: 5000,
+    expiresAt: '2026-11-30T23:59:59',
+    minOrderAmount: null,
+    usableFrom: null,
+    usableTo: null,
+    fixedDiscount: 5000,
+  },
+  {
+    couponId: 'FIXED3000',
+    couponName: '3,000원 할인 쿠폰',
+    discountType: 'FIXED' as const,
+    isApplicable: true,
+    discountAmount: 3000,
+    expiresAt: '2026-12-31T23:59:59',
+    minOrderAmount: 50000,
+    usableFrom: null,
+    usableTo: null,
+    fixedDiscount: 3000,
+  },
+  {
+    couponId: 'MIRACLESALE',
+    couponName: '미라클모닝 50% 쿠폰',
+    discountType: 'PERCENTAGE' as const,
+    isApplicable: false,
+    discountAmount: 0,
+    expiresAt: '2026-10-31T23:59:59',
+    minOrderAmount: null,
+    usableFrom: '04:00',
+    usableTo: '07:00',
+    fixedDiscount: 0,
+  },
+];
+
+// 쿠폰 응답은 fixedDiscount(목 내부 계산값)를 제외하고 내보낸다.
+const toCouponResponse = ({
+  fixedDiscount,
+  ...rest
+}: (typeof MOCK_COUPONS)[number]) => {
+  void fixedDiscount;
+  return rest;
+};
+
 // 대부분의 테스트가 공유하는 기본 핸들러.
 // 특정 테스트에서 다른 응답이 필요하면 그 테스트에서 server.use()로 덮어쓴다(override 우선).
 export const handlers = [
@@ -59,14 +108,25 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  // 보유 쿠폰 목록(+적용여부/할인액). 고정 fixture를 반환한다.
+  http.get(`${BASE_URL}/coupons`, () => {
+    const coupons = MOCK_COUPONS.map(toCouponResponse);
+    const orderAmount = cart.reduce(
+      (sum, item) => sum + item.productPrice * item.purchaseQuantity,
+      0,
+    );
+    return HttpResponse.json({ orderAmount, coupons });
+  }),
+
   // 서버 주문 요약 계산을 흉내낸다(클라이언트는 표시만). 선택 항목 합으로 주문 금액을,
-  // 도서산간/무료배송 임계로 배송비를 정한다. 쿠폰 할인은 0(쿠폰은 4b).
+  // 도서산간/무료배송 임계로 배송비를 정한다. 쿠폰 할인은 선택 쿠폰의 고정 할인 합.
   http.post(`${BASE_URL}/orders/summary`, async ({ request }) => {
-    const { selectedCartItemIds, isRemoteArea } = (await request.json()) as {
-      selectedCartItemIds: string[];
-      selectedCouponIds: string[];
-      isRemoteArea: boolean;
-    };
+    const { selectedCartItemIds, selectedCouponIds, isRemoteArea } =
+      (await request.json()) as {
+        selectedCartItemIds: string[];
+        selectedCouponIds: string[];
+        isRemoteArea: boolean;
+      };
 
     const orderAmount = cart
       .filter((item) => selectedCartItemIds.includes(item.cartItemId))
@@ -75,7 +135,12 @@ export const handlers = [
         0,
       );
 
-    const couponDiscountAmount = 0;
+    // 선택된 쿠폰들의 고정 할인 합(목 단순화). 적용가능 쿠폰만 합산한다.
+    const couponDiscountAmount = MOCK_COUPONS.filter(
+      (coupon) =>
+        coupon.isApplicable && selectedCouponIds.includes(coupon.couponId),
+    ).reduce((sum, coupon) => sum + coupon.fixedDiscount, 0);
+
     const shippingFee =
       orderAmount >= 100000 ? 0 : isRemoteArea ? 6000 : 3000;
     const totalPaymentAmount =
