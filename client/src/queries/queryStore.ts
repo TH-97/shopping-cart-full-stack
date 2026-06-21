@@ -13,6 +13,8 @@ class QueryStore {
   private states = new Map<string, QueryState<unknown>>();
   private promises = new Map<string, Promise<unknown>>();
   private listeners = new Map<string, Set<() => void>>();
+  // key별 마지막 queryFn을 보관 → invalidate가 같은 fetch를 재실행할 수 있게.
+  private queryFns = new Map<string, () => Promise<unknown>>();
 
   getState(key: string): QueryState<unknown> {
     return this.states.get(key) ?? LOADING;
@@ -21,8 +23,22 @@ class QueryStore {
   // 캐시에 없고 진행 중도 아닐 때만 fetch를 시작한다.
   // idempotent하므로 렌더 중 호출해도 안전하다(중복 fetch 방지).
   ensureFetch<T>(key: string, queryFn: () => Promise<T>): void {
-    if (this.promises.has(key)) return;
+    this.queryFns.set(key, queryFn as () => Promise<unknown>);
     if (this.states.get(key)?.status === 'ready') return;
+    this.runFetch(key, queryFn);
+  }
+
+  // 캐시는 유지한 채 같은 queryFn으로 재요청한다(stale-while-revalidate).
+  // 옛 데이터는 새 결과가 도착할 때까지 그대로 보여 로딩 깜빡임이 없다.
+  invalidate(key: string): void {
+    const queryFn = this.queryFns.get(key);
+    if (!queryFn) return;
+    this.runFetch(key, queryFn);
+  }
+
+  // 진행 중이 아니면 fetch를 시작한다. 결과는 캐시에 반영하고 구독자에게 알린다.
+  private runFetch<T>(key: string, queryFn: () => Promise<T>): void {
+    if (this.promises.has(key)) return;
 
     const promise = queryFn()
       .then((data) => this.set(key, { status: 'ready', data }))
@@ -32,13 +48,6 @@ class QueryStore {
       .finally(() => this.promises.delete(key));
 
     this.promises.set(key, promise);
-  }
-
-  // 캐시를 비우고 구독자에게 알린다 → 구독 컴포넌트가 리렌더되며 ensureFetch가 재요청.
-  invalidate(key: string): void {
-    this.states.delete(key);
-    this.promises.delete(key);
-    this.notify(key);
   }
 
   subscribe(key: string, listener: () => void): () => void {
@@ -53,6 +62,7 @@ class QueryStore {
     this.states.clear();
     this.promises.clear();
     this.listeners.clear();
+    this.queryFns.clear();
   }
 
   private set(key: string, state: QueryState<unknown>): void {

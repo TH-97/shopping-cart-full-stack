@@ -27,13 +27,12 @@ export function CartPage() {
       </CartLayout>
     );
 
-  return <LoadedCart initialItems={state.data} />;
+  return <LoadedCart cartItems={state.data} />;
 }
 
-function LoadedCart({ initialItems }: { initialItems: CartItemData[] }) {
+function LoadedCart({ cartItems }: { cartItems: CartItemData[] }) {
   const navigate = useNavigate();
-  const { cartItems, changeQuantity, deleteItem, error } =
-    useCartMutations(initialItems);
+  const { changeQuantity, deleteItem, error } = useCartMutations();
   const { selectedIds, toggleItem, toggleAll } = useSelectedIds(cartItems);
 
   if (cartItems.length === 0)

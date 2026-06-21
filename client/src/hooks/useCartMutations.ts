@@ -1,32 +1,12 @@
-import { useReducer, useState } from 'react';
+import { useState } from 'react';
 import { deleteCartItem, patchQuantity } from '../api/cartApi';
 import { isValidQuantity } from '../utils/cart.utils';
-import type { CartItemData } from '../types/cart';
+import { queryStore } from '../queries/queryStore';
+import { CART_QUERY_KEY } from './useCartQuery';
 
-type CartItemsAction =
-  | { type: 'changeQuantity'; cartItemId: string; newQuantity: number }
-  | { type: 'deleteItem'; cartItemId: string };
-
-function cartItemsReducer(
-  cartItems: CartItemData[],
-  action: CartItemsAction,
-): CartItemData[] {
-  switch (action.type) {
-    case 'changeQuantity':
-      return cartItems.map((item) =>
-        item.cartItemId === action.cartItemId
-          ? { ...item, purchaseQuantity: action.newQuantity }
-          : item,
-      );
-    case 'deleteItem':
-      return cartItems.filter((item) => item.cartItemId !== action.cartItemId);
-    default:
-      throw new Error(`Unknown action: ${(action as CartItemsAction).type}`);
-  }
-}
-
-export function useCartMutations(initialItems: CartItemData[]) {
-  const [cartItems, dispatch] = useReducer(cartItemsReducer, initialItems);
+// cart mutation은 로컬 상태를 복제하지 않는다(SSOT).
+// 서버 호출 성공 시 cart 쿼리를 invalidate → store가 재요청해 모든 구독자가 갱신된다.
+export function useCartMutations() {
   const [error, setError] = useState<string | null>(null);
 
   const changeQuantity = async (cartItemId: string, newQuantity: number) => {
@@ -34,8 +14,8 @@ export function useCartMutations(initialItems: CartItemData[]) {
 
     try {
       await patchQuantity(cartItemId, newQuantity);
-      dispatch({ type: 'changeQuantity', cartItemId, newQuantity });
       setError(null);
+      queryStore.invalidate(CART_QUERY_KEY);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -44,12 +24,12 @@ export function useCartMutations(initialItems: CartItemData[]) {
   const deleteItem = async (cartItemId: string) => {
     try {
       await deleteCartItem(cartItemId);
-      dispatch({ type: 'deleteItem', cartItemId });
       setError(null);
+      queryStore.invalidate(CART_QUERY_KEY);
     } catch (err) {
       setError((err as Error).message);
     }
   };
 
-  return { cartItems, changeQuantity, deleteItem, error };
+  return { changeQuantity, deleteItem, error };
 }
