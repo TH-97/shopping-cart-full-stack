@@ -1,15 +1,27 @@
 import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { server } from '../../mocks/server';
 import { OrderConfirmPage } from './OrderConfirmPage';
+import { OrderCompletePage } from './OrderCompletePage';
 import { API_BASE_URL as BASE_URL } from '../../api/config';
 
 const renderPage = () =>
   render(
     <MemoryRouter>
       <OrderConfirmPage />
+    </MemoryRouter>,
+  );
+
+// 결제 후 이동을 검증하려면 complete 라우트가 함께 마운트되어야 한다.
+const renderWithRoutes = () =>
+  render(
+    <MemoryRouter initialEntries={['/order']}>
+      <Routes>
+        <Route path="/order" element={<OrderConfirmPage />} />
+        <Route path="/order/complete" element={<OrderCompletePage />} />
+      </Routes>
     </MemoryRouter>,
   );
 
@@ -121,6 +133,49 @@ test('쿠폰 적용 버튼을 누르면 쿠폰 선택 모달이 열린다', asyn
   // 적용 가능/불가 쿠폰이 모두 목록에 나온다.
   expect(screen.getByText('5,000원 할인 쿠폰')).toBeInTheDocument();
   expect(screen.getByText('미라클모닝 50% 쿠폰')).toBeInTheDocument();
+});
+
+test('결제하기 클릭 시 쿠폰 검증을 통과하면 결제 확인 화면으로 이동한다', async () => {
+  renderWithRoutes();
+  await screen.findByText('상품이름A');
+
+  // 요약이 준비되어 총액(112,000원)이 보일 때까지 기다린다.
+  await screen.findByText('112,000원');
+
+  const payButton = await screen.findByRole('button', { name: '결제하기' });
+  expect(payButton).toBeEnabled();
+  await userEvent.click(payButton);
+
+  expect(await screen.findByText('결제 확인')).toBeInTheDocument();
+  expect(
+    screen.getByText(/총 2종류의 상품 4개를 주문했습니다/),
+  ).toBeInTheDocument();
+  // summary 총액이 그대로 넘어와 표시된다.
+  expect(screen.getByText('112,000원')).toBeInTheDocument();
+});
+
+test('쿠폰 검증이 실패하면 에러 메시지를 보여주고 이동하지 않는다', async () => {
+  server.use(
+    http.post(`${BASE_URL}/coupons/validate`, () =>
+      HttpResponse.json(
+        { code: 'COUPON_EXPIRED', message: '만료된 쿠폰입니다.' },
+        { status: 400 },
+      ),
+    ),
+  );
+
+  renderWithRoutes();
+  await screen.findByText('상품이름A');
+  await screen.findByText('112,000원');
+
+  await userEvent.click(
+    await screen.findByRole('button', { name: '결제하기' }),
+  );
+
+  expect(await screen.findByText('만료된 쿠폰입니다.')).toBeInTheDocument();
+  // 이동하지 않아 주문 확인 화면이 유지된다.
+  expect(screen.getByText('주문 확인')).toBeInTheDocument();
+  expect(screen.queryByText('결제 확인')).not.toBeInTheDocument();
 });
 
 test('쿠폰 선택을 해제하면 요약이 재호출되어 할인/총액이 바뀐다', async () => {

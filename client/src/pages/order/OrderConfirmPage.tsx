@@ -7,6 +7,7 @@ import {
   EmptyNotice,
   Header,
   PayButton,
+  PayError,
   Title,
   Wrapper,
 } from './styles';
@@ -23,8 +24,10 @@ import { useCouponSelection } from '../../hooks/useCouponSelection';
 import { CouponModal } from './components/CouponModal';
 import { IsLoding } from '../../components/IsLoding';
 import { ErrorView } from '../../components/ErrorView';
+import { usePayment } from '../../hooks/usePayment';
 import type { CartItemData } from '../../types/cart';
 import type { CouponData } from '../../types/coupon';
+import type { OrderCompleteState } from '../../types/order';
 
 function OrderHeader() {
   const navigate = useNavigate();
@@ -104,6 +107,8 @@ function SelectedOrderConfirm({
   selectedItems,
   selectedCartItemIds,
 }: SelectedOrderConfirmProps) {
+  const navigate = useNavigate();
+  const { pay, status: payStatus, error: payError } = usePayment();
   const { isRemoteArea, toggle } = useRemoteArea();
 
   // 보유 쿠폰(서버상태). 선택 항목 기준 적용여부/할인액을 가져온다.
@@ -135,6 +140,26 @@ function SelectedOrderConfirm({
     (sum, item) => sum + item.purchaseQuantity,
     0,
   );
+
+  // summary가 준비되지 않으면 표시할 금액이 없어 결제할 수 없다.
+  const isSummaryReady = summaryState.status === 'ready';
+  const isPayDisabled = !isSummaryReady || payStatus === 'loading';
+
+  // 결제 = 선택 쿠폰 유효성 검증만(주문 저장 없음). 통과하면 확인 화면으로 이동한다.
+  // 금액은 서버 summary 값을 그대로 넘긴다(클라 재계산 없음).
+  const handlePay = async () => {
+    if (summaryState.status !== 'ready') return;
+
+    const succeeded = await pay(selectedCouponIds);
+    if (!succeeded) return;
+
+    const completeState: OrderCompleteState = {
+      typesCount: selectedItems.length,
+      totalCount,
+      totalPaymentAmount: summaryState.data.totalPaymentAmount,
+    };
+    navigate('/order/complete', { state: completeState });
+  };
 
   return (
     <Wrapper>
@@ -169,8 +194,9 @@ function SelectedOrderConfirm({
         />
       )}
 
-      {/* 4c에서 결제 액션과 연결한다. */}
-      <PayButton type="button" onClick={() => {}}>
+      {payStatus === 'error' && payError && <PayError role="alert">{payError}</PayError>}
+
+      <PayButton type="button" onClick={handlePay} disabled={isPayDisabled}>
         결제하기
       </PayButton>
     </Wrapper>

@@ -228,3 +228,23 @@ export const RemoteAreaNotice = styled.p`
   color: #888;
   text-align: left;
 `;
+
+export const PayError = styled.p`
+  margin: 0;
+  padding: 12px 24px;
+  font-size: 13px;
+  color: #d33;
+  text-align: center;
+`;
+
+export const CompleteTotalLabel = styled.p`
+  margin: 24px 0 0;
+  font-size: 15px;
+  font-weight: bold;
+`;
+
+export const CompleteTotalAmount = styled.p`
+  margin: 0;
+  font-size: 28px;
+  font-weight: bold;
+`;

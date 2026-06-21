@@ -108,6 +108,22 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  // 선택 쿠폰 유효성 검증. 통과하면 204. 'expired' id가 포함되면 만료 에러(400).
+  http.post(`${BASE_URL}/coupons/validate`, async ({ request }) => {
+    const { selectedCouponIds } = (await request.json()) as {
+      selectedCouponIds: string[];
+    };
+
+    if (selectedCouponIds.includes('expired')) {
+      return HttpResponse.json(
+        { code: 'COUPON_EXPIRED', message: '만료된 쿠폰입니다.' },
+        { status: 400 },
+      );
+    }
+
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   // 보유 쿠폰 목록(+적용여부/할인액). 고정 fixture를 반환한다.
   http.get(`${BASE_URL}/coupons`, () => {
     const coupons = MOCK_COUPONS.map(toCouponResponse);
