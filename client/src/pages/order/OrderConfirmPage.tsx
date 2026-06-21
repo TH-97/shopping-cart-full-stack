@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BackButton,
@@ -15,32 +14,57 @@ import {
   calculateDeliveryFee,
   calculateOrderAmount,
 } from '../../utils/cart.utils';
-import { fetchCartItems } from '../../api/cartApi';
-import { loadSelectedIds } from '../../storage/selectedIdsStorage';
+import { useCartQuery } from '../../hooks/useCartQuery';
+import { useSelectedIds } from '../../hooks/useSelectedIds';
+import { IsLoding } from '../../components/IsLoding';
+import { ErrorView } from '../../components/ErrorView';
 import type { CartItemData } from '../../types/cart';
 
-export function OrderConfirmPage() {
+function OrderHeader() {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  return (
+    <Header>
+      <BackButton aria-label="뒤로 가기" onClick={() => navigate(-1)}>
+        ←
+      </BackButton>
+    </Header>
+  );
+}
 
-  useEffect(() => {
-    const loadOrder = async () => {
-      try {
-        const data = await fetchCartItems();
-        setCartItems(data);
-        setSelectedIds(loadSelectedIds() ?? new Set());
-      } catch {
-        // 주문 정보를 불러오지 못하면 빈 상태를 유지한다
-      }
-    };
-    loadOrder();
-  }, []);
+export function OrderConfirmPage() {
+  // cart 서버상태는 store 단일 출처를 공유한다(장바구니 페이지와 동일).
+  const state = useCartQuery();
+
+  if (state.status === 'loading')
+    return (
+      <Wrapper>
+        <OrderHeader />
+        <Content>
+          <IsLoding />
+        </Content>
+      </Wrapper>
+    );
+
+  if (state.status === 'error')
+    return (
+      <Wrapper>
+        <OrderHeader />
+        <Content>
+          <ErrorView message={state.error.message} />
+        </Content>
+      </Wrapper>
+    );
+
+  return <LoadedOrderConfirm cartItems={state.data} />;
+}
+
+function LoadedOrderConfirm({ cartItems }: { cartItems: CartItemData[] }) {
+  // 선택 복원 규칙(저장값 또는 전체 선택)을 장바구니와 동일하게 useSelectedIds로 통일.
+  const { selectedIds } = useSelectedIds(cartItems);
 
   const selectedItems = cartItems.filter((item) =>
     selectedIds.has(item.cartItemId),
   );
-
   const totalCount = selectedItems.reduce(
     (sum, item) => sum + item.purchaseQuantity,
     0,
@@ -52,11 +76,7 @@ export function OrderConfirmPage() {
 
   return (
     <Wrapper>
-      <Header>
-        <BackButton aria-label="뒤로 가기" onClick={() => navigate(-1)}>
-          ←
-        </BackButton>
-      </Header>
+      <OrderHeader />
 
       <Content>
         <Title>주문 확인</Title>
