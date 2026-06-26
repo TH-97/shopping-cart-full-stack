@@ -57,6 +57,19 @@ describe('InMemoryCouponRepository', () => {
     expect(ids).toEqual(['c1', 'c2']);
   });
 
+  test('findOwnedByUser는 삽입 순서와 무관하게 couponId로 정렬해 반환한다', async () => {
+    // best-combo 추천의 동점 tie-break가 반환 순서에 의존하므로 결정성을 보장해야 한다.
+    // 역순으로 보유시켜도 정렬된 순서로 나오는지 확인한다.
+    couponsDB.set('c9', createCoupon('c9'));
+    couponsDB.set('c0', createCoupon('c0'));
+    userCouponsDB.set('uc-c9', createOwnership('c9', 'demo-user'));
+    userCouponsDB.set('uc-c0', createOwnership('c0', 'demo-user'));
+
+    const owned = await repository.findOwnedByUser('demo-user');
+
+    expect(owned.map((o) => o.coupon.couponId)).toEqual(['c0', 'c1', 'c2', 'c9']);
+  });
+
   test('findOwnedByUser는 isUsed 플래그를 함께 반환한다', async () => {
     const owned = await repository.findOwnedByUser('demo-user');
     const c2 = owned.find((o) => o.coupon.couponId === 'c2');

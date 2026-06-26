@@ -8,8 +8,6 @@ export interface CouponData {
   couponName: string;
   discountType: DiscountType;
   isApplicable: boolean;
-  // 현재 주문 기준 단독 적용 시 할인액(적용 불가 시 0).
-  discountAmount: number;
   // 모달 표시용 메타. 조건이 없으면 null.
   expiresAt: string;
   minOrderAmount: number | null;
@@ -21,4 +19,7 @@ export interface CouponData {
 export interface CouponListResponse {
   orderAmount: number;
   coupons: CouponData[];
+  // 서버가 계산한 실제 할인 최대 조합(적용 가능 쿠폰의 부분집합, 길이 0~2).
+  // 클라이언트 초기 선택값으로 그대로 사용한다(클라 재계산 없음).
+  recommendedCouponIds: string[];
 }

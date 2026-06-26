@@ -103,4 +103,55 @@ describe('queryStore', () => {
     expect(calls).toBe(1);
     expect(queryStore.getState('k')).toEqual({ status: 'ready', data: 1 });
   });
+
+  test('마지막 구독자가 떠나면 그 key의 캐시를 정리한다', async () => {
+    const d = deferred<number>();
+    queryStore.ensureFetch('k', () => d.promise);
+    const unsubscribe = queryStore.subscribe('k', () => {});
+
+    d.resolve(1);
+    await flush();
+    expect(queryStore.getState('k')).toEqual({ status: 'ready', data: 1 });
+
+    unsubscribe();
+    expect(queryStore.getState('k')).toEqual({ status: 'loading' });
+  });
+
+  test('구독자가 남아 있으면 캐시를 유지한다', async () => {
+    const d = deferred<number>();
+    queryStore.ensureFetch('k', () => d.promise);
+    const unsubscribe1 = queryStore.subscribe('k', () => {});
+    const unsubscribe2 = queryStore.subscribe('k', () => {});
+
+    d.resolve(1);
+    await flush();
+
+    unsubscribe1();
+    expect(queryStore.getState('k')).toEqual({ status: 'ready', data: 1 });
+
+    unsubscribe2();
+    expect(queryStore.getState('k')).toEqual({ status: 'loading' });
+  });
+
+  test('fetch 진행 중 구독자가 떠나면 종료 후 정리한다(인플라이트 결과 미잔류)', async () => {
+    const d = deferred<number>();
+    queryStore.ensureFetch('k', () => d.promise);
+    const unsubscribe = queryStore.subscribe('k', () => {});
+
+    unsubscribe(); // 아직 진행 중 → 정리 보류
+    d.resolve(1); // 완료 → 보류된 정리 마무리
+    await flush();
+
+    expect(queryStore.getState('k')).toEqual({ status: 'loading' });
+  });
+
+  test('한 번도 구독되지 않은 key는 fetch 후에도 캐시를 유지한다', async () => {
+    const d = deferred<number>();
+    queryStore.ensureFetch('k', () => d.promise);
+
+    d.resolve(1);
+    await flush();
+
+    expect(queryStore.getState('k')).toEqual({ status: 'ready', data: 1 });
+  });
 });

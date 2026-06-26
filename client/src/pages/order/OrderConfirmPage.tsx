@@ -14,7 +14,6 @@ import {
 import { OrderItemList } from './components/OrderItemList';
 import { OrderSummaryBox } from './components/OrderSummaryBox';
 import { RemoteAreaCheckbox } from './components/RemoteAreaCheckbox';
-import { useMemo } from 'react';
 import { useCartQuery } from '../../hooks/useCartQuery';
 import { useSelectedIds } from '../../hooks/useSelectedIds';
 import { useRemoteArea } from '../../hooks/useRemoteArea';
@@ -115,14 +114,21 @@ function SelectedOrderConfirm({
   const couponsState = useCoupons(selectedCartItemIds);
 
   // 적용 가능 쿠폰만 추려 best-combo 초기화 입력으로 넘긴다.
-  // 같은 데이터면 참조가 안정되도록 ready 데이터를 key로 memo한다.
-  const applicableCoupons = useMemo<CouponData[]>(() => {
-    if (couponsState.status !== 'ready') return [];
-    return couponsState.data.coupons.filter((coupon) => coupon.isApplicable);
-  }, [couponsState]);
+  // useCouponSelection은 이 배열의 값(length/포함 여부)만 보고 참조 식별자에
+  // 기대지 않으므로, memo 없이 매 렌더 계산한다(작은 배열 filter).
+  const applicableCoupons: CouponData[] =
+    couponsState.status === 'ready'
+      ? couponsState.data.coupons.filter((coupon) => coupon.isApplicable)
+      : [];
+
+  // 초기 선택은 서버 추천 조합(실제 할인 최대 ≤2)을 그대로 사용한다(클라 재계산 없음).
+  const recommendedCouponIds =
+    couponsState.status === 'ready'
+      ? couponsState.data.recommendedCouponIds
+      : [];
 
   const { selectedCouponIds, isModalOpen, open, close, toggleCoupon } =
-    useCouponSelection(applicableCoupons);
+    useCouponSelection(applicableCoupons, recommendedCouponIds);
 
   // 선택 항목·쿠폰·도서산간이 바뀌면 서버 요약이 자동 재계산된다.
   const summaryState = useOrderSummary({

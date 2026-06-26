@@ -1,16 +1,3 @@
-import type { CouponData } from '../types/coupon';
-
-// 적용 가능한 쿠폰 중 단독 할인액이 큰 순으로 최대 2개의 couponId를 고른다.
-// 그리디 근사(조합 최적이 아닌 단독 할인액 기준 상위 2개)로 best-combo 초기값을 만든다.
-export function pickBestCoupons(coupons: CouponData[]): string[] {
-  return coupons
-    .filter((coupon) => coupon.isApplicable)
-    .slice()
-    .sort((a, b) => b.discountAmount - a.discountAmount)
-    .slice(0, 2)
-    .map((coupon) => coupon.couponId);
-}
-
 // ISO 문자열을 "2026년 11월 30일" 형태로 표기한다.
 export function formatExpiry(iso: string): string {
   const date = new Date(iso);
@@ -35,10 +22,21 @@ function formatHour(time: string): string {
 }
 
 // 사용 가능 시간대 안내. 둘 다 없으면 null.
+// from·to의 오전/오후가 같으면 끝 시각의 중복 표기를 생략하고(예: 오전 4시부터 7시까지),
+// 다르면(예: 04:00~19:00) 둘 다 표기해 오전/오후가 헷갈리지 않게 한다.
 export function formatUsableTime(
   from: string | null,
   to: string | null,
 ): string | null {
   if (from === null || to === null) return null;
-  return `${formatHour(from)}부터 ${formatHour(to).replace(/^(오전|오후) /, '')}까지`;
+  const sameMeridiem = isMorning(from) === isMorning(to);
+  const toText = sameMeridiem
+    ? formatHour(to).replace(/^(오전|오후) /, '')
+    : formatHour(to);
+  return `${formatHour(from)}부터 ${toText}까지`;
+}
+
+// 'HH:MM'의 시각이 오전(자정~정오 전)인지. formatHour의 오전/오후 기준과 동일.
+function isMorning(time: string): boolean {
+  return Number(time.split(':')[0]) < 12;
 }

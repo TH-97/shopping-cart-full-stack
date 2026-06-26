@@ -1,13 +1,13 @@
 import {
   Coupon,
   type CouponContext,
-  type Type,
+  type CouponProps,
 } from '../../../src/modules/coupon/coupon.model.js';
 
 const future = new Date('2099-12-31T23:59:59Z');
 const now = new Date('2026-06-20T10:00:00Z');
 
-const createCoupon = (overrides: Partial<Type> = {}) =>
+const createCoupon = (overrides: Partial<CouponProps> = {}) =>
   new Coupon({
     couponId: 'c1',
     code: 'FIXED5000',

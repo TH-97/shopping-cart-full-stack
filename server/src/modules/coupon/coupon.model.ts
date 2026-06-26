@@ -5,7 +5,7 @@ export type DiscountType = 'FIXED' | 'PERCENTAGE';
 // 쿠폰 식별 코드. 할인액·적용 조건 분기의 단일 기준이다(discountType은 정렬 순서용).
 export type CouponCode = 'FIXED5000' | 'BOGO' | 'FREESHIPPING' | 'MIRACLESALE';
 
-export type Type = {
+export type CouponProps = {
   couponId: string;
   code: CouponCode;
   name: string;
@@ -43,7 +43,7 @@ export class Coupon {
   buyQuantity;
   freeQuantity;
 
-  constructor(coupon: Type) {
+  constructor(coupon: CouponProps) {
     this.couponId = coupon.couponId;
     this.code = coupon.code;
     this.name = coupon.name;
@@ -84,7 +84,8 @@ export class Coupon {
     return this.meetsCodeCondition(ctx);
   }
 
-  private isExpired(now: Date): boolean {
+  // 만료 판정의 단일 출처. isApplicable(목록/추천)과 service.validate(검증) 양쪽이 함께 쓴다.
+  isExpired(now: Date): boolean {
     return this.expiresAt.getTime() < now.getTime();
   }
 

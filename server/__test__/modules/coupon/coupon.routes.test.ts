@@ -104,8 +104,9 @@ describe('GET /coupons', () => {
       couponId: 'fixed',
       discountType: 'FIXED',
       isApplicable: true,
-      discountAmount: 5000,
     });
+    // 단일 적용 가능 쿠폰이 할인 > 0이므로 추천에 포함된다.
+    expect(res.body.recommendedCouponIds).toEqual(['fixed']);
   });
 
   test('보유 쿠폰이 없으면 빈 배열을 반환한다', async () => {
@@ -115,6 +116,55 @@ describe('GET /coupons', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.coupons).toEqual([]);
+    expect(res.body.recommendedCouponIds).toEqual([]);
+  });
+
+  test('추천은 항상 응답 coupons 중 applicable 부분집합이다', async () => {
+    seedItem('ci1', 'p1', 50000, 2); // 주문금액 100000 → 배송비 0
+    addCoupon(
+      new Coupon({
+        couponId: 'fix90000',
+        code: 'FIXED5000',
+        name: '9만원 정액',
+        discountType: 'FIXED',
+        discountValue: 90000,
+        expiresAt: future,
+      }),
+    );
+    addCoupon(
+      new Coupon({
+        couponId: 'fix5000',
+        code: 'FIXED5000',
+        name: '5천원 정액',
+        discountType: 'FIXED',
+        discountValue: 5000,
+        expiresAt: future,
+      }),
+    );
+    addCoupon(
+      new Coupon({
+        couponId: 'pct30',
+        code: 'MIRACLESALE',
+        name: '30% 할인',
+        discountType: 'PERCENTAGE',
+        discountValue: 30,
+        expiresAt: future,
+      }),
+    );
+
+    const res = await request(app).get('/coupons?selectedCartItemIds=ci1');
+
+    expect(res.status).toBe(200);
+    // 단독 상위2는 {90000, 30%}지만 실제 최적은 {90000, 5000}(95,000 > 93,000).
+    // 반환 순서는 couponId 정렬(findOwnedByUser)을 따라 결정적이다.
+    expect(res.body.recommendedCouponIds).toEqual(['fix5000', 'fix90000']);
+
+    const applicableIds = res.body.coupons
+      .filter((c: { isApplicable: boolean }) => c.isApplicable)
+      .map((c: { couponId: string }) => c.couponId);
+    for (const id of res.body.recommendedCouponIds) {
+      expect(applicableIds).toContain(id);
+    }
   });
 
   test('존재하지 않는 cartItemId면 404 CART_ITEM_NOT_FOUND', async () => {

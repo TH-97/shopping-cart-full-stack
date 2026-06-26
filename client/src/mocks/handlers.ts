@@ -44,7 +44,6 @@ const MOCK_COUPONS = [
     couponName: '5,000원 할인 쿠폰',
     discountType: 'FIXED' as const,
     isApplicable: true,
-    discountAmount: 5000,
     expiresAt: '2026-11-30T23:59:59',
     minOrderAmount: null,
     usableFrom: null,
@@ -56,7 +55,6 @@ const MOCK_COUPONS = [
     couponName: '3,000원 할인 쿠폰',
     discountType: 'FIXED' as const,
     isApplicable: true,
-    discountAmount: 3000,
     expiresAt: '2026-12-31T23:59:59',
     minOrderAmount: 50000,
     usableFrom: null,
@@ -68,7 +66,6 @@ const MOCK_COUPONS = [
     couponName: '미라클모닝 50% 쿠폰',
     discountType: 'PERCENTAGE' as const,
     isApplicable: false,
-    discountAmount: 0,
     expiresAt: '2026-10-31T23:59:59',
     minOrderAmount: null,
     usableFrom: '04:00',
@@ -125,13 +122,16 @@ export const handlers = [
   }),
 
   // 보유 쿠폰 목록(+적용여부/할인액). 고정 fixture를 반환한다.
+  // recommendedCouponIds는 서버가 계산한 실제 할인 최대 조합(적용 가능 쿠폰의 부분집합).
+  // 목에서는 적용 가능한 두 고정 쿠폰(5,000+3,000)을 추천값으로 둔다.
   http.get(`${BASE_URL}/coupons`, () => {
     const coupons = MOCK_COUPONS.map(toCouponResponse);
     const orderAmount = cart.reduce(
       (sum, item) => sum + item.productPrice * item.purchaseQuantity,
       0,
     );
-    return HttpResponse.json({ orderAmount, coupons });
+    const recommendedCouponIds = ['FIXED5000', 'FIXED3000'];
+    return HttpResponse.json({ orderAmount, coupons, recommendedCouponIds });
   }),
 
   // 서버 주문 요약 계산을 흉내낸다(클라이언트는 표시만). 선택 항목 합으로 주문 금액을,

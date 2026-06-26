@@ -34,7 +34,6 @@ export type CouponSummaryItem = {
   couponName: string;
   discountType: DiscountType;
   isApplicable: boolean;
-  discountAmount: number;
   // 모달 표시용 메타. usableFrom/usableTo는 사용 가능 시간대가 없으면 null.
   expiresAt: string;
   minOrderAmount: number | null;
@@ -45,7 +44,9 @@ export type CouponSummaryItem = {
 export const toCouponsResponse = (
   orderAmount: number,
   coupons: CouponSummaryItem[],
+  recommendedCouponIds: string[],
 ) => ({
   orderAmount,
   coupons,
+  recommendedCouponIds,
 });

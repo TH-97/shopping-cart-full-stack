@@ -28,7 +28,13 @@ export const createCouponController = ({
 
     res
       .status(200)
-      .json(toCouponsResponse(result.orderAmount, result.coupons));
+      .json(
+        toCouponsResponse(
+          result.orderAmount,
+          result.coupons,
+          result.recommendedCouponIds,
+        ),
+      );
   }),
 
   validate: routeHandler(async (req, res) => {

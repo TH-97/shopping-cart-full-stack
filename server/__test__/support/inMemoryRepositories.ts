@@ -92,9 +92,12 @@ export const createInMemoryCouponRepository = (
 
   return {
     async findOwnedByUser(ownerId) {
+      // Supabase 구현의 .order('coupon_id')와 동일하게 정렬해 반환 순서를 고정한다.
+      // best-combo 추천의 동점 tie-break가 이 순서에 의존하므로 결정성이 필요하다.
       return ownedRows(ownerId)
         .map(join)
-        .filter((owned): owned is OwnedCoupon => owned !== undefined);
+        .filter((owned): owned is OwnedCoupon => owned !== undefined)
+        .sort((a, b) => a.coupon.couponId.localeCompare(b.coupon.couponId));
     },
 
     async findById(couponId) {

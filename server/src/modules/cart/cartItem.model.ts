@@ -1,6 +1,6 @@
 import { invalidPurchaseQuantityError } from '../../errors/domainErrors.js';
 
-export type Type = {
+export type CartItemProps = {
   cartItemId: string;
   productId: string;
   purchaseQuantity: number;
@@ -11,7 +11,7 @@ export class CartItem {
   productId;
   purchaseQuantity;
 
-  constructor(cartItem: Type) {
+  constructor(cartItem: CartItemProps) {
     this.validatePurchaseQuantity(cartItem.purchaseQuantity);
 
     this.cartItemId = cartItem.cartItemId;

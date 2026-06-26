@@ -63,20 +63,24 @@ describe('toCouponsResponse', () => {
         couponName: '쿠폰',
         discountType: 'FIXED',
         isApplicable: true,
-        discountAmount: 5000,
         expiresAt: '2026-11-30T14:59:59.000Z',
         minOrderAmount: 100000,
         usableFrom: null,
         usableTo: null,
       },
     ];
-    expect(toCouponsResponse(50000, coupons)).toEqual({
+    expect(toCouponsResponse(50000, coupons, ['c1'])).toEqual({
       orderAmount: 50000,
       coupons,
+      recommendedCouponIds: ['c1'],
     });
   });
 
   test('보유 쿠폰이 없으면 빈 배열', () => {
-    expect(toCouponsResponse(0, [])).toEqual({ orderAmount: 0, coupons: [] });
+    expect(toCouponsResponse(0, [], [])).toEqual({
+      orderAmount: 0,
+      coupons: [],
+      recommendedCouponIds: [],
+    });
   });
 });

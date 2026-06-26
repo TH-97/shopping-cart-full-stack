@@ -79,10 +79,13 @@ export const createSupabaseCouponRepository = (
   userId: string,
 ): CouponRepository => ({
   async findOwnedByUser(ownerId) {
+    // coupon_id로 정렬해 반환 순서를 고정한다. best-combo 추천의 동점 tie-break가
+    // 이 순서(인덱스)에 의존하므로, 정렬이 없으면 동점 추천이 비결정적이 된다.
     const { data, error } = await client
       .from(TABLE)
       .select(SELECT)
-      .eq('user_id', ownerId);
+      .eq('user_id', ownerId)
+      .order('coupon_id');
     if (error) throw new Error(error.message);
     return toOwnedCoupons((data ?? []) as JoinedRow[]);
   },

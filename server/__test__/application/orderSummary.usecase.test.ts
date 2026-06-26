@@ -106,6 +106,19 @@ describe('OrderSummaryUseCase', () => {
     ).rejects.toThrow('존재하지 않는 장바구니 상품입니다.');
   });
 
+  test('장바구니엔 있으나 상품이 없으면 PRODUCT_NOT_FOUND를 던진다', async () => {
+    addCartItem('ci1', 'missing-product', 1);
+
+    await expect(
+      useCase.execute({
+        selectedCartItemIds: ['ci1'],
+        selectedCouponIds: [],
+        isRemoteArea: false,
+        now,
+      }),
+    ).rejects.toThrow('존재하지 않는 상품입니다.');
+  });
+
   test('정액 → 정율 순서로 순차 적용한다 (검산: 100000, FIXED5000+MIRACLESALE)', async () => {
     addProduct('p1', 50000);
     addCartItem('ci1', 'p1', 2); // 주문금액 100000 → 배송비 0

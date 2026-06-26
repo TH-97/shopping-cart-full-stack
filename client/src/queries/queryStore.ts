@@ -17,6 +17,9 @@ class QueryStore {
   private queryFns = new Map<string, () => Promise<unknown>>();
   // 진행 중 invalidate가 들어온 key. 현재 fetch가 끝나면 한 번 더 재요청한다.
   private dirty = new Set<string>();
+  // fetch 진행 중에 마지막 구독자가 떠난 key. 인플라이트 결과를 유실하지 않도록
+  // 바로 지우지 않고, fetch가 끝난 뒤 정리한다.
+  private pendingEvict = new Set<string>();
 
   getState(key: string): QueryState<unknown> {
     return this.states.get(key) ?? LOADING;
@@ -53,7 +56,18 @@ class QueryStore {
         // 진행 중 들어온 invalidate가 있으면 마지막 최신값으로 한 번 더 재요청.
         if (this.dirty.delete(key)) {
           const latest = this.queryFns.get(key);
-          if (latest) this.runFetch(key, latest);
+          if (latest) {
+            this.runFetch(key, latest);
+            return; // 정리는 새 fetch의 finally로 미룬다(pendingEvict 유지).
+          }
+        }
+        // fetch 도중 마지막 구독자가 떠났던 key는 여기서 정리를 마무리한다.
+        // 단, 진행 중 다시 구독되었으면(remount) 살려둔다.
+        if (
+          this.pendingEvict.delete(key) &&
+          (this.listeners.get(key)?.size ?? 0) === 0
+        ) {
+          this.evict(key);
         }
       });
 
@@ -71,7 +85,27 @@ class QueryStore {
     const listeners = this.listeners.get(key) ?? new Set();
     listeners.add(listener);
     this.listeners.set(key, listeners);
-    return () => listeners.delete(listener);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size > 0) return;
+      // 마지막 구독자가 떠난 key의 캐시는 정리한다 → orderSummary처럼 입력마다
+      // 새 key가 쌓이는 캐시가 무한정 불어나지 않게 한다.
+      // fetch가 진행 중이면 인플라이트 결과 유실을 막기 위해 종료 후로 미룬다.
+      if (this.promises.has(key)) {
+        this.pendingEvict.add(key);
+        return;
+      }
+      this.evict(key);
+    };
+  }
+
+  // key의 캐시를 모든 자료구조에서 일관되게 제거한다.
+  private evict(key: string): void {
+    this.states.delete(key);
+    this.listeners.delete(key);
+    this.queryFns.delete(key);
+    this.dirty.delete(key);
+    this.pendingEvict.delete(key);
   }
 
   // 테스트 격리용: 전체 초기화.
@@ -81,6 +115,7 @@ class QueryStore {
     this.listeners.clear();
     this.queryFns.clear();
     this.dirty.clear();
+    this.pendingEvict.clear();
   }
 
   private set(key: string, state: QueryState<unknown>): void {

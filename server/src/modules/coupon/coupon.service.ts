@@ -32,9 +32,8 @@ export class CouponService {
     for (const couponId of uniqueCouponIds) {
       const owned = await this.couponRepository.findById(couponId);
       if (!owned) throw couponNotFoundError();
-      if (owned.coupon.expiresAt.getTime() < now.getTime()) {
-        throw couponExpiredError();
-      }
+      // 만료 판정은 model을 단일 출처로 빌려 쓴다(isApplicable과 규칙이 어긋나지 않게).
+      if (owned.coupon.isExpired(now)) throw couponExpiredError();
       if (owned.isUsed) throw couponAlreadyUsedError();
     }
   }

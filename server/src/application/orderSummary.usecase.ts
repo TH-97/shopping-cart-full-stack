@@ -7,13 +7,12 @@ import type { CartItemRepository } from '../modules/cart/cartItem.repository.js'
 import { MAX_COUPON_COUNT } from '../modules/coupon/coupon.service.js';
 import type { CouponRepository } from '../modules/coupon/coupon.repository.js';
 import type { Coupon, CouponContext } from '../modules/coupon/coupon.model.js';
+import { calculateCouponDiscount } from './couponDiscount.js';
 import {
   calculateOrderAmount,
-  calculateProductDiscount,
   calculateShippingDiscount,
   calculateShippingFee,
   calculateTotalPayment,
-  type ProductCoupon,
 } from '../modules/order/order.calculation.js';
 import { resolveSelectedItems } from '../modules/order/resolveSelectedItems.js';
 import type { OrderSummary } from '../modules/order/order.dto.js';
@@ -47,37 +46,27 @@ export class OrderSummaryUseCase {
     // 무료배송 기준은 쿠폰 적용 전 주문금액으로 판정한다(도서산간이면 추가 요금 포함).
     const baseShippingFee = calculateShippingFee(orderAmount, input.isRemoteArea);
 
+    const ctx: CouponContext = {
+      orderAmount,
+      shippingFee: baseShippingFee,
+      selectedItems,
+      now,
+    };
+
     const coupons = await this.resolveAppliedCoupons(
       input.selectedCouponIds,
-      { orderAmount, shippingFee: baseShippingFee, selectedItems, now },
+      ctx,
     );
 
-    // 트랙 A(상품금액): 정액 먼저 → 정율 나중 순차 적용. FREESHIPPING은 제외.
-    const productCoupons = coupons
-      .filter((coupon) => coupon.code !== 'FREESHIPPING')
-      .map((coupon): ProductCoupon => ({
-        discountType: coupon.discountType,
-        applyTo: (amount) =>
-          coupon.calculateDiscount({
-            orderAmount: amount,
-            shippingFee: baseShippingFee,
-            selectedItems,
-            now,
-          }),
-      }));
-    const productDiscount = calculateProductDiscount(orderAmount, productCoupons);
+    // 쿠폰 할인(트랙 A 상품할인 + 트랙 B 배송할인)을 순수 함수에 위임한다.
+    const couponDiscountAmount = calculateCouponDiscount(coupons, ctx);
 
-    // 트랙 B(배송비): FREESHIPPING이 있으면 배송비 전액 할인.
+    // 최종 배송비: FREESHIPPING이 있으면 배송비 전액 할인되어 0.
     const hasFreeShipping = coupons.some(
       (coupon) => coupon.code === 'FREESHIPPING',
     );
-    const shippingDiscount = calculateShippingDiscount(
-      baseShippingFee,
-      hasFreeShipping,
-    );
-
-    const couponDiscountAmount = productDiscount + shippingDiscount;
-    const finalShippingFee = baseShippingFee - shippingDiscount;
+    const finalShippingFee =
+      baseShippingFee - calculateShippingDiscount(baseShippingFee, hasFreeShipping);
 
     return {
       orderAmount,

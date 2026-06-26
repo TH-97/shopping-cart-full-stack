@@ -4,7 +4,7 @@ import {
   invalidRemainingQuantityError,
 } from '../../errors/domainErrors.js';
 
-export type Type = {
+export type ProductProps = {
   productId: string;
   productName: string;
   productPrice: number;
@@ -19,7 +19,7 @@ export class Product {
   remainingQuantity;
   imageUrl?;
 
-  constructor(product: Type) {
+  constructor(product: ProductProps) {
     this.validate(product);
 
     this.productId = product.productId;
@@ -29,7 +29,7 @@ export class Product {
     this.imageUrl = product.imageUrl;
   }
 
-  private validate(product: Type) {
+  private validate(product: ProductProps) {
     this.validateProductName(product.productName);
     this.validateProductPrice(product.productPrice);
     this.validateRemainingQuantity(product.remainingQuantity);

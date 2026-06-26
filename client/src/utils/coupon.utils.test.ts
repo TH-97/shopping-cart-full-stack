@@ -2,61 +2,7 @@ import {
   formatExpiry,
   formatMinOrder,
   formatUsableTime,
-  pickBestCoupons,
 } from './coupon.utils';
-import type { CouponData } from '../types/coupon';
-
-const makeCoupon = (overrides: Partial<CouponData> = {}): CouponData => ({
-  couponId: 'C1',
-  couponName: '쿠폰',
-  discountType: 'FIXED',
-  isApplicable: true,
-  discountAmount: 1000,
-  expiresAt: '2026-11-30T23:59:59',
-  minOrderAmount: null,
-  usableFrom: null,
-  usableTo: null,
-  ...overrides,
-});
-
-describe('pickBestCoupons', () => {
-  test('적용 불가 쿠폰은 후보에서 제외한다', () => {
-    const coupons = [
-      makeCoupon({ couponId: 'A', isApplicable: false, discountAmount: 9000 }),
-      makeCoupon({ couponId: 'B', isApplicable: true, discountAmount: 1000 }),
-    ];
-
-    expect(pickBestCoupons(coupons)).toEqual(['B']);
-  });
-
-  test('할인액 내림차순으로 정렬해 최대 2개를 고른다', () => {
-    const coupons = [
-      makeCoupon({ couponId: 'A', discountAmount: 1000 }),
-      makeCoupon({ couponId: 'B', discountAmount: 5000 }),
-      makeCoupon({ couponId: 'C', discountAmount: 3000 }),
-    ];
-
-    expect(pickBestCoupons(coupons)).toEqual(['B', 'C']);
-  });
-
-  test('적용 가능 쿠폰이 없으면 빈 배열', () => {
-    const coupons = [makeCoupon({ isApplicable: false })];
-
-    expect(pickBestCoupons(coupons)).toEqual([]);
-  });
-
-  test('원본 배열을 변형하지 않는다', () => {
-    const coupons = [
-      makeCoupon({ couponId: 'A', discountAmount: 1000 }),
-      makeCoupon({ couponId: 'B', discountAmount: 5000 }),
-    ];
-    const before = coupons.map((c) => c.couponId);
-
-    pickBestCoupons(coupons);
-
-    expect(coupons.map((c) => c.couponId)).toEqual(before);
-  });
-});
 
 describe('formatExpiry', () => {
   test('ISO 문자열을 "YYYY년 M월 D일"로 표기한다', () => {
@@ -80,7 +26,15 @@ describe('formatUsableTime', () => {
     expect(formatUsableTime('04:00', null)).toBeNull();
   });
 
-  test('시작은 오전/오후 시각, 끝은 시각만 표기한다', () => {
+  test('시작·끝이 같은 오전/오후면 끝 시각은 시각만 표기한다', () => {
     expect(formatUsableTime('04:00', '07:00')).toBe('오전 4시부터 7시까지');
+  });
+
+  test('시작·끝의 오전/오후가 다르면 끝 시각도 오전/오후를 표기한다', () => {
+    expect(formatUsableTime('04:00', '19:00')).toBe('오전 4시부터 오후 7시까지');
+  });
+
+  test('자정 횡단 구간도 오전/오후를 각각 표기한다', () => {
+    expect(formatUsableTime('22:00', '04:00')).toBe('오후 10시부터 오전 4시까지');
   });
 });

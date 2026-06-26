@@ -9,7 +9,6 @@ const applicable = (overrides: Partial<CouponData> = {}): CouponData => ({
   couponName: '5,000원 할인 쿠폰',
   discountType: 'FIXED',
   isApplicable: true,
-  discountAmount: 5000,
   expiresAt: '2026-11-30T23:59:59',
   minOrderAmount: null,
   usableFrom: null,
@@ -19,7 +18,7 @@ const applicable = (overrides: Partial<CouponData> = {}): CouponData => ({
 
 const ready = (coupons: CouponData[]): QueryState<CouponListResponse> => ({
   status: 'ready',
-  data: { orderAmount: 100000, coupons },
+  data: { orderAmount: 100000, coupons, recommendedCouponIds: [] },
 });
 
 const renderModal = (
